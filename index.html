@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <script>
+      // Dark is the only theme. Pin it before first paint, and overwrite any
+      // 'light' a visitor stored back when the header carried a theme toggle.
+      (function () {
+        try {
+          localStorage.setItem('theme', 'dark');
+        } catch (e) {}
+        document.documentElement.setAttribute('data-theme', 'dark');
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interactive Boyle-Gilboa-Ishai distributed point function and two-server XOR private information retrieval demo."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Split Point — crypto-lab" />
+    <meta
+      property="og:description"
+      content="Build and inspect real distributed point-function keys, then use them for two-server private information retrieval."
+    />
+    <meta property="og:url" content="https://systemslibrarian.github.io/crypto-lab-split-point/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Split Point — crypto-lab" />
+    <meta
+      name="twitter:description"
+      content="Real tree-based function secret sharing and two-server XOR private information retrieval in the browser."
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%8D</text></svg>"
+    />
+    <title>Split Point — crypto-lab</title>
+  </head>
+  <body>
+    <style>
+      .cl-topbar{--cl-ink:color-mix(in srgb,var(--accent,#35d6bb) 60%,#eafff8);display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.7rem clamp(.9rem,3vw,2rem);background:#0b1512;border-bottom:1px solid color-mix(in srgb,var(--accent,#35d6bb) 22%,transparent);font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;position:sticky;top:0;z-index:1000}
+      .cl-brand{display:flex;align-items:center;gap:.8rem;text-decoration:none}
+      .cl-badge{flex:0 0 auto;display:grid;place-items:center;width:40px;height:40px;border:1.5px solid var(--accent,#35d6bb);border-radius:8px;color:var(--cl-ink);font-weight:700;font-size:.95rem;letter-spacing:.05em}
+      .cl-brand-text{display:flex;flex-direction:column;line-height:1.15}.cl-title{color:#eafff8;font-weight:700;font-size:1.05rem;letter-spacing:.12em}.cl-sub{color:#8fb8ad;font-size:.72rem;letter-spacing:.04em}.cl-actions{display:flex;align-items:center;gap:.5rem}
+      .cl-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem .85rem;border-radius:8px;border:1px solid color-mix(in srgb,var(--cl-ink) 70%,transparent);background:transparent;color:var(--cl-ink);cursor:pointer;font:inherit;font-size:.78rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;transition:background .15s,border-color .15s,color .15s}
+      .cl-btn:hover{background:color-mix(in srgb,var(--accent,#35d6bb) 14%,transparent);border-color:var(--accent,#35d6bb);color:#eafff8}.cl-btn svg{width:15px;height:15px}.cl-skip-link{position:absolute;left:.5rem;top:-3rem;z-index:1001;padding:.55rem 1rem;border-radius:0 0 8px 8px;background:#eafff8;color:#0b1512;font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-weight:700;font-size:.8rem;letter-spacing:.04em;text-decoration:none;transition:top .15s ease}.cl-skip-link:focus{top:0;outline:2px solid var(--accent,#35d6bb);outline-offset:2px}body :is(#theme-toggle,#themeToggle,.theme-toggle,.theme-toggle-btn,[data-theme-toggle]){display:none!important}
+      @media(max-width:560px){.cl-sub{display:none}.cl-btn span{display:none}.cl-btn svg{margin:0}}
+      @media(pointer:coarse){.cl-btn{min-height:44px}}@media(pointer:coarse) and (min-width:380px){.cl-btn{min-width:44px}}
+      @media(prefers-reduced-motion:reduce){.cl-btn,.cl-skip-link{transition:none}}
+    </style>
+    <a class="cl-skip-link" href="#app">Skip to content</a>
+    <header class="cl-topbar" role="banner" aria-label="Crypto Lab">
+      <a class="cl-brand" href="https://crypto-lab.systemslibrarian.dev/" aria-label="Crypto Lab home">
+        <span class="cl-badge">CL</span>
+        <span class="cl-brand-text"><span class="cl-title">CRYPTO LAB</span><span class="cl-sub">systemslibrarian.dev</span></span>
+      </a>
+      <nav class="cl-actions" aria-label="Crypto Lab navigation">
+        <a class="cl-btn" href="https://crypto-lab.systemslibrarian.dev/" aria-label="Crypto Lab menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg><span>Menu</span>
+        </a>
+        <a class="cl-btn" href="https://github.com/systemslibrarian/crypto-lab-split-point" target="_blank" rel="noopener" aria-label="View this project on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7 0-.7 0-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0C17.3 5 18.3 5.3 18.3 5.3c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .4.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg><span>GitHub</span>
+        </a>
+      </nav>
+    </header>
+
+    <div id="app" tabindex="-1">
+      <header class="cl-hero" role="group">
+        <div class="cl-hero-main">
+          <p class="eyebrow">FUNCTIONS CAN BE SHARED</p>
+          <h1 class="cl-hero-title">Split Point</h1>
+          <p class="cl-hero-sub">Function secret sharing · DPF · 2-server PIR</p>
+          <p class="cl-hero-desc">Watch two random-looking key trees unfold level by level, XOR their leaves into a single lit point, and use that point to pull one book off a 65,536-book shelf with a query smaller than one page.</p>
+        </div>
+        <aside class="cl-hero-why" aria-label="Why it matters">
+          <span class="cl-hero-why-label">WHY IT MATTERS</span>
+          <p class="cl-hero-why-text">Two-server PIR was already private; it was also a query as long as the whole catalog. Function secret sharing makes “which record did you read?” hideable at the size of real collections, and underpins modern private-measurement systems.</p>
+        </aside>
+      </header>
+
+      <main>
+        <section class="intro-band" aria-labelledby="intro-title">
+          <p class="section-index">THE IDEA</p>
+          <div>
+            <h2 id="intro-title">Share the instruction, not the answer</h2>
+            <p>A distributed point function turns “put a 1 at secret position α” into two compact keys. Either key alone expands into noise; expanded together and XORed, they leave exactly one 1. Each server can then scan a public shelf without learning which record its share helped retrieve.</p>
+          </div>
+        </section>
+
+        <section class="lab-section mechanism" aria-labelledby="mechanism-title">
+          <div class="section-heading">
+            <div><p class="section-index">01 · TREE MICROSCOPE</p><h2 id="mechanism-title">One point, split across two trees</h2></div>
+            <div class="verdict verdict-pass" id="tree-verdict" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>ONE LIT POINT AT α = <strong id="tree-alpha-verdict">11</strong></span></div>
+          </div>
+
+          <div class="control-deck">
+            <label class="range-control" for="alpha-range"><span>Secret index α</span><output id="alpha-value" for="alpha-range">11</output><input id="alpha-range" type="range" min="0" max="15" value="11" /></label>
+            <div class="step-control" role="group" aria-label="Tree expansion level">
+              <span class="control-label">Expansion level</span>
+              <div class="button-row"><button class="button button-secondary" id="step-back" type="button">Previous</button><output id="step-value">4 / 4</output><button class="button button-primary" id="step-next" type="button" disabled>Next level</button></div>
+            </div>
+            <button class="button button-secondary" id="new-keys" type="button">Generate new keys</button>
+          </div>
+          <p class="retirement" id="retirement" role="status" aria-live="polite" hidden></p>
+
+          <div class="tree-stage" id="tree-stage" role="region" aria-label="DPF tree shares and XOR reconstruction" tabindex="0">
+            <div class="tree-row"><div class="row-label"><span class="party-dot party-zero"></span><strong>Server 0</strong><span>k0 share</span></div><div class="node-grid" id="tree-zero" role="list"></div></div>
+            <div class="tree-row"><div class="row-label"><span class="party-dot party-one"></span><strong>Server 1</strong><span>k1 share</span></div><div class="node-grid" id="tree-one" role="list"></div></div>
+            <div class="xor-divider"><span>XOR</span></div>
+            <div class="tree-row xor-row"><div class="row-label"><span class="party-dot xor-dot"></span><strong>Combined</strong><span>point function</span></div><div class="node-grid" id="tree-xor" role="list"></div></div>
+          </div>
+
+          <div class="trace-strip">
+            <div><span class="trace-label">Correction word</span><code id="correction-seed">final output correction</code></div>
+            <div><span class="trace-label">Control bits</span><code id="correction-bits">β = 1</code></div>
+            <div><span class="trace-label">Primitive</span><code>AES-128-CTR → 2(λ + 1) bits</code></div>
+          </div>
+
+          <details class="key-inspector">
+            <summary>Inspect the serialized key and construction</summary>
+            <div class="inspector-grid">
+              <div><span class="trace-label">k0 serialized bytes</span><code class="hex-dump" id="serialized-key-hex"></code></div>
+              <div class="prose-small"><p>Each level carries a 16-byte seed correction plus two packed control bits. AES-128-CTR is the named PRG: the node seed is its key, a fixed counter emits two child seeds and two control bits, exactly the BGI requirement.</p><p>No published known-answer vectors were found for this exact randomized tree-DPF variant. The test suite instead checks every supported domain against an independently built point vector.</p></div>
+            </div>
+          </details>
+        </section>
+
+        <section class="lab-section shelf-section" aria-labelledby="shelf-title">
+          <div class="section-heading"><div><p class="section-index">02 · PRIVATE SHELF</p><h2 id="shelf-title">Fetch one of 65,536 records</h2></div><p class="section-kicker">Both servers scan everything. Neither receives α.</p></div>
+          <div class="pir-flow" role="group" aria-label="Two-server private information retrieval flow">
+            <div class="flow-node"><span class="flow-number">1</span><strong>CLIENT</strong><span>Gen(α) → k0, k1</span></div><span class="flow-arrow" role="img" aria-label="then"></span><div class="flow-node"><span class="flow-number">2</span><strong>TWO SERVERS</strong><span>XOR-fold the shelf</span></div><span class="flow-arrow" role="img" aria-label="then"></span><div class="flow-node"><span class="flow-number">3</span><strong>CLIENT</strong><span>answer0 XOR answer1</span></div>
+          </div>
+          <div class="pir-workbench">
+            <div class="pir-controls">
+              <label for="shelf-alpha">Record index α<input id="shelf-alpha" type="number" min="0" max="65535" value="41337" inputmode="numeric" /></label>
+              <label class="toggle-row" for="tamper-toggle"><span><strong>Tamper with server 1</strong><small>BROKEN mode · flip one answer bit</small></span><input id="tamper-toggle" type="checkbox" /></label>
+              <button class="button button-primary fetch-button" id="fetch-record" type="button">Fetch privately</button>
+              <p class="work-status" id="fetch-status" role="status" aria-live="polite">Ready to scan 65,536 records in this browser.</p>
+              <div class="server-progress" role="group" aria-label="Server fold progress">
+                <label for="server-zero-progress"><span>Server 0 fold</span><output id="server-zero-percent" for="server-zero-progress">0%</output></label><progress id="server-zero-progress" max="65536" value="0"></progress>
+                <label for="server-one-progress"><span>Server 1 fold</span><output id="server-one-percent" for="server-one-progress">0%</output></label><progress id="server-one-progress" max="65536" value="0"></progress>
+              </div>
+            </div>
+            <div class="pir-result" id="pir-result" hidden>
+              <div class="privacy-grid" id="privacy-verdicts"></div>
+              <div class="record-compare">
+                <div><span class="trace-label">Retrieved record</span><code id="retrieved-record"></code></div>
+                <div><span class="trace-label">shelf[α] teaching oracle</span><code id="expected-record"></code></div>
+              </div>
+              <div class="verdict" id="record-verdict" role="status"></div>
+            </div>
+          </div>
+          <aside class="negative-claim" id="negative-claim">
+            <span class="status-mark" aria-hidden="true">!</span>
+            <div><strong>PRIVACY IS NOT INTEGRITY</strong><p>This two-server PIR hides which record is read; it does not authenticate what is returned. A server that flips one bit corrupts the record, and the protocol has no authentication check to fail. The shelf comparison above is an outside teaching oracle, not part of PIR.</p></div>
+          </aside>
+        </section>
+
+        <section class="lab-section meter-section" aria-labelledby="meter-title">
+          <div class="section-heading"><div><p class="section-index">03 · QUERY SCALE</p><h2 id="meter-title">Logarithmic keys, full-length baseline</h2></div></div>
+          <div class="meter-layout">
+            <label class="select-label" for="size-domain">Domain size<span class="select-wrap"><select id="size-domain"><option value="4">16 records</option><option value="8">256 records</option><option value="12">4,096 records</option><option value="16" selected>65,536 records</option></select><span class="select-chevron" aria-hidden="true"></span></span></label>
+            <div class="meter-bars">
+              <div class="meter-row"><div><strong>One DPF key</strong><span id="key-byte-label">290 bytes</span></div><div class="meter-track"><span class="meter-fill dpf-fill" id="dpf-bar"></span></div></div>
+              <div class="meter-row"><div><strong>Chor XOR query</strong><span id="chor-byte-label">8,192 bytes · 65,536 bits</span></div><div class="meter-track"><span class="meter-fill chor-fill" id="chor-bar"></span></div></div>
+            </div>
+            <dl class="parts-list">
+              <div><dt>Root material</dt><dd id="part-root">17 B</dd></div><div><dt>Per-level corrections</dt><dd id="part-levels">272 B</dd></div><div><dt>Final correction</dt><dd id="part-final">1 B</dd></div><div class="parts-total"><dt>Measured total</dt><dd id="key-bytes" data-count="290">290 B</dd></div>
+            </dl>
+          </div>
+          <p class="formula" id="size-formula">17 + (17 × log₂ 65,536) + 1 = 290 bytes</p>
+          <code id="meter-key-hex" class="visually-hidden"></code>
+        </section>
+
+        <section class="lab-section threat-section" aria-labelledby="threat-title">
+          <div class="section-heading"><div><p class="section-index">04 · TRUST BOUNDARY</p><h2 id="threat-title">Break the non-collusion assumption</h2></div></div>
+          <div class="threat-grid">
+            <label class="toggle-row collusion-toggle" for="collusion-toggle"><span><strong>Give one server both keys</strong><small>BROKEN mode · violates non-collusion</small></span><input id="collusion-toggle" type="checkbox" /></label>
+            <div class="collusion-view" id="collusion-view" role="status" aria-live="polite"><div class="verdict verdict-pass"><span class="status-mark" aria-hidden="true">1</span><span>ONE KEY ONLY · α remains hidden</span></div><p>A single expanded share contains many 0s and 1s but no distinguished target.</p></div>
+          </div>
+        </section>
+
+        <section class="scope-band" aria-labelledby="scope-title">
+          <div><p class="section-index">HONEST SCOPE</p><h2 id="scope-title">What this is, and what it is not</h2><p>This page implements the two-party BGI tree DPF with AES-128-CTR and real full-domain XOR PIR in your browser. It is not production crypto: the TypeScript is written for inspection, has no side-channel hardening, and keeps ephemeral key material only in memory.</p></div>
+          <div class="scope-columns">
+            <details open><summary>Built here</summary><ul role="list"><li role="listitem">DPF Gen, Eval, EvalAll, and strict key serialization for domains 2<sup>4</sup> through 2<sup>16</sup>.</li><li role="listitem">Two independent server folds and client reconstruction against shelf[α].</li><li role="listitem">Collusion and unauthenticated-answer failures, both off by default.</li><li role="listitem">Malformed keys, out-of-domain points, and wrong-length answers fail closed.</li><li role="listitem">Records wider than the 16-byte AES block are folded in full; record width does not alter the one-bit DPF output.</li></ul></details>
+            <details><summary>Deliberate non-goals</summary><ul role="list"><li role="listitem"><strong>Three or more servers:</strong> this is strictly a two-key construction.</li><li role="listitem"><strong>Multi-point, interval, or comparison FSS:</strong> this shares one point function only.</li><li role="listitem"><strong>Incremental DPF:</strong> the VDAF draft’s IDPF is a different construction.</li><li role="listitem"><strong>Verifiable DPF:</strong> servers do not prove honest evaluation.</li><li role="listitem"><strong>Malicious-secure PIR:</strong> answer tampering is detected only by the teaching oracle.</li><li role="listitem"><strong>Query batching:</strong> each fetch carries one point query.</li><li role="listitem"><strong>Single-server PIR:</strong> two non-colluding servers are essential; see <a href="https://systemslibrarian.github.io/crypto-lab-shelf-oracle/">Shelf Oracle</a>.</li></ul></details>
+            <details><summary>Boundary probes</summary><ul role="list"><li role="listitem"><strong>α outside the domain:</strong> Gen and the shelf control reject it before either server runs.</li><li role="listitem"><strong>Domain size 1:</strong> refused as degenerate; this lab starts at 2<sup>4</sup>.</li><li role="listitem"><strong>All-zero seed:</strong> allowed. Its real AES expansion begins <code id="zero-seed-proof">computing…</code>.</li><li role="listitem"><strong>Malformed key:</strong> reserved bits, wrong correction count, invalid controls, and truncation name their cause.</li><li role="listitem"><strong>Wrong-length answer:</strong> client reconstruction rejects mismatched or empty answers.</li><li role="listitem"><strong>Record wider than AES:</strong> the 17-byte boundary test folds every byte without truncation.</li></ul></details>
+          </div>
+        </section>
+
+        <section class="references" aria-labelledby="references-title"><h2 id="references-title">Primary sources</h2><p><a href="https://doi.org/10.1007/978-3-642-55220-5_26">Gilboa &amp; Ishai, Distributed Point Functions and Their Applications (EUROCRYPT 2014)</a> · <a href="https://doi.org/10.1007/978-3-662-46803-6_20">Boyle, Gilboa &amp; Ishai, Function Secret Sharing (EUROCRYPT 2015)</a> · <a href="https://eprint.iacr.org/2018/707">Boyle, Gilboa &amp; Ishai, Function Secret Sharing: Improvements and Extensions</a> · <a href="https://doi.org/10.1109/SFCS.1995.492461">Chor et al., Private Information Retrieval (FOCS 1995)</a></p></section>
+      </main>
+
+      <footer class="scripture-footer"><p>So whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31</p></footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
