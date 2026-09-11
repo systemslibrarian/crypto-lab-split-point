@@ -4,7 +4,9 @@ test('honest PIR output equals the indexed shelf record', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('.');
   const alpha = Number(await page.locator('#shelf-alpha').inputValue());
+  await expect(page.locator('#pir-awaiting')).toBeVisible();
   await page.getByRole('button', { name: 'Fetch privately' }).click();
+  await expect(page.locator('#pir-awaiting')).toBeHidden();
   await expect(page.locator('#record-verdict')).toHaveAttribute('data-status', 'pass');
   await expect(page.locator('#server-zero-progress')).toHaveJSProperty('value', 65_536);
   await expect(page.locator('#server-one-progress')).toHaveJSProperty('value', 65_536);

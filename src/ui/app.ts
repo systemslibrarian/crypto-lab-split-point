@@ -166,6 +166,7 @@ async function fetchFromShelf(): Promise<void> {
   const expected = shelf[alpha];
   const matches = sameBytes(record, expected);
 
+  element<HTMLElement>('pir-awaiting').hidden = true;
   element('privacy-verdicts').innerHTML = `<div class="mini-verdict" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>Server 0 received one ${keys[0].length}-byte key</span></div><div class="mini-verdict" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>Server 1 received one ${keys[1].length}-byte key</span></div><div class="mini-verdict" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>Collusion remains off</span></div>`;
   element('retrieved-record').textContent = toHex(record);
   element('expected-record').textContent = toHex(expected);
