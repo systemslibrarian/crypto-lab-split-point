@@ -14,7 +14,7 @@ The teaching implementation supports domains from $2^4$ through $2^{16}$. Its ps
 4. **Collusion** — deliberately give both keys to one server and watch α become visible inside that server’s view. With collusion off, the page states the one-key case as a count: how many leaves the single expanded share lights, which is what “no distinguished target” means.
 5. **Tampering** — flip one bit in a server answer. Every privacy condition still passes, but the client retrieves the wrong record because this PIR does not authenticate answers. The page names the damage from that run: how many bytes of the record differ, and that reconstruction raised nothing.
 
-Every verdict the page renders carries a `data-verdict` marker and turns on a value the page computed. None of them is a fixed string.
+Every verdict the page renders carries a `data-verdict` marker and turns on a value the page computed, and every number it renders carries a `data-claim` marker with the measurement behind the words in `data-value`. None of them is a fixed string, and the key-size meter states the parts it measured for the domain actually selected, not the default one.
 
 ## When to Use It
 
@@ -79,7 +79,11 @@ There are **0 published known-answer tests** for this exact randomized BGI tree-
 
 The Playwright suite builds before serving and checks the production bundle on the fleet-unique port `4698`. It includes rendered mathematical claims, honest/tampered/colluding flows, retirement and no-op behavior, `[hidden]` containment, desktop/mobile reflow, axe WCAG 2.1 A/AA, arithmetic text contrast, and per-side non-text control contrast.
 
-A separate **verdict coverage** gate walks the page through every state that can render an outcome and derives coverage from the DOM rather than from a list. It fails when a `data-verdict` marker has no mutation recorded in `e2e/verdict-mutations.json`, when a registered mutation names a verdict the page never renders, when a marker renders without a status, and when verdict wording or verdict styling appears outside a marker — the raw banner a careless builder adds later. It also injects such a banner and asserts the scan catches it, so the scan cannot pass by being blind. Each entry in that file names a mutation that has been applied and watched to turn its own assertion red, with the unmutated baseline passing in the same run.
+A separate **verdict coverage** gate walks the page through every state that can render an outcome and derives coverage from the DOM rather than from a list. The walk visits every option of every control that changes what renders — each control on its own, never the cross-product — because that walk is the denominator both coverage rules and both stray scans enumerate over: anything reachable only at a setting it never visits is outside the set they judge.
+
+It fails when a `data-verdict` verdict or a `data-claim` measurement has no mutation recorded in `e2e/verdict-mutations.json`, when a registered mutation names a marker the page never renders, when a marker renders without a status or without a numeric value, and when verdict wording, verdict styling or a rendered measurement appears outside a marker — the raw banner, or the stray number, a careless builder adds later. It injects both and asserts the scans catch them, so neither scan can pass by being blind. Every recorded mutation must also be killed through `expectVerdict`/`expectClaim`, which assert a marker's words, its machine-readable state or value, and its painted plate in one call: text alone is not an assertion of state, and a mutation that pinned the record verdict's plate green while its words read RETRIEVED — AND WRONG used to pass the whole suite.
+
+Each entry in that file names a mutation that has been applied and watched to turn its own assertion red, with the unmutated baseline passing in the same run.
 
 That gate is its own job in `deploy.yml` and a required check on `main`, and both `deploy` and `dependabot-auto-merge` declare `needs: [build, verdict-coverage]`, so nothing ships past it. GitHub Pages deploys only after the unit, build, browser, and verdict-coverage gates pass.
 

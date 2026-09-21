@@ -119,21 +119,35 @@ function regenerateTree(alpha: number, retire: boolean): void {
   element<HTMLInputElement>('collusion-toggle').checked = false;
 }
 
+/**
+ * Every number this page paints is a marked claim: `data-claim` names it and
+ * `data-value` carries the machine-readable measurement behind the words, so a
+ * rendered sentence and the value it states cannot drift apart unnoticed.
+ */
+function renderClaim(id: string, value: number, text: string): void {
+  const node = element(id);
+  node.dataset.value = String(value);
+  node.textContent = text;
+}
+
 function renderMeter(domainBits: number): void {
   const domainSize = 2 ** domainBits;
   const key = generateDpf(0, domainBits)[0];
   const serialized = serializeKey(key);
   const parts = serializedKeyParts(domainBits);
   const chorBytes = domainSize / 8;
-  element('key-byte-label').textContent = `${serialized.length.toLocaleString()} bytes`;
-  element('chor-byte-label').textContent = `${chorBytes.toLocaleString()} bytes · ${domainSize.toLocaleString()} bits`;
-  element('part-root').textContent = `${parts.rootMaterial} B`;
-  element('part-levels').textContent = `${parts.correctionWords} B`;
-  element('part-final').textContent = `${parts.finalCorrection} B`;
-  const total = element('key-bytes');
-  total.textContent = `${serialized.length} B`;
-  total.dataset.count = String(serialized.length);
-  element('size-formula').textContent = `17 + (17 × log₂ ${domainSize.toLocaleString()}) + 1 = ${parts.total} bytes`;
+  const perLevel = parts.correctionWords / domainBits;
+  renderClaim('key-byte-label', serialized.length, `${serialized.length.toLocaleString()} bytes`);
+  renderClaim('chor-byte-label', chorBytes, `${chorBytes.toLocaleString()} bytes · ${domainSize.toLocaleString()} bits`);
+  renderClaim('part-root', parts.rootMaterial, `${parts.rootMaterial} B`);
+  renderClaim('part-levels', parts.correctionWords, `${parts.correctionWords} B`);
+  renderClaim('part-final', parts.finalCorrection, `${parts.finalCorrection} B`);
+  renderClaim('key-bytes', serialized.length, `${serialized.length} B`);
+  renderClaim(
+    'size-formula',
+    parts.total,
+    `${parts.rootMaterial} + (${perLevel} × log₂ ${domainSize.toLocaleString()}) + ${parts.finalCorrection} = ${parts.total} bytes`
+  );
   element('meter-key-hex').textContent = toHex(serialized);
   const baseline = Math.max(chorBytes, serialized.length);
   element<HTMLElement>('dpf-bar').style.width = `${Math.max(3, (serialized.length / baseline) * 100)}%`;
@@ -293,6 +307,10 @@ export function boot(): void {
   renderMeter(16);
   const zeroExpansion = expandSeed(new Uint8Array(16));
   element('zero-seed-proof').textContent = `L ${toHex(zeroExpansion.leftSeed).slice(0, 8)} · R ${toHex(zeroExpansion.rightSeed).slice(0, 8)}`;
+  // The PRG's node width used to be painted as the constant "2(λ + 1) bits".
+  // It is a measurement of the real expansion, so it is rendered as one.
+  const nodeWidthBits = (zeroExpansion.leftSeed.length + zeroExpansion.rightSeed.length) * 8 + 2;
+  renderClaim('prg-width', nodeWidthBits, `AES-128-CTR → 2(λ + 1) = ${nodeWidthBits} bits per node`);
 
   element<HTMLInputElement>('alpha-range').addEventListener('input', (event) => {
     regenerateTree(Number((event.currentTarget as HTMLInputElement).value), true);
