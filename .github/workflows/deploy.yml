@@ -74,7 +74,7 @@ jobs:
             gh pr merge --squash --delete-branch "$PR_URL" && merged=1 && break
             sleep 15
           done
-          [ -n "$merged" ] || { echo "::warning::gate passed, merge did not land"; exit 0; }
+          [ -n "$merged" ] || { echo "::error::gate passed but the squash merge did not land after 3 attempts; the bump is unmerged and no deploy was dispatched"; exit 1; }
           gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
