@@ -1,9 +1,10 @@
 import { collude } from '../attack/collude';
+import { singleShareView } from '../attack/single-view';
 import { tamperAnswer } from '../attack/tamper';
 import { evaluateAll, evaluateLevel } from '../dpf/eval';
 import { generateDpf } from '../dpf/gen';
 import { expandSeed } from '../dpf/prg';
-import { serializeKey, serializedKeyParts, toHex } from '../dpf/serialize';
+import { deserializeKey, serializeKey, serializedKeyParts, toHex } from '../dpf/serialize';
 import type { DpfKey } from '../dpf/types';
 import { createQuery, reconstruct } from '../pir/client';
 import { createShelf } from '../pir/shelf';
@@ -40,6 +41,31 @@ function renderNode(bit: number, seedHex: string, index: number, combined: boole
   return `<span class="tree-node${lit}" role="listitem" aria-label="${label}"><span class="node-bit">${bit}</span>${combined ? '' : `<span class="seed-prefix">${seedHex}</span>`}</span>`;
 }
 
+/**
+ * The headline claim of exhibit 01. It is read off the XOR of both full leaf
+ * expansions, never off the alpha the slider asked for: the lit index shown is
+ * the one the two real keys actually reconstruct, and the verdict turns when
+ * that index is not a single point at alpha.
+ */
+function renderTreeVerdict(leaves0: Uint8Array, leaves1: Uint8Array): void {
+  const combined = leaves0.map((bit, index) => bit ^ leaves1[index]);
+  const lit: number[] = [];
+  combined.forEach((bit, index) => {
+    if (bit === 1) lit.push(index);
+  });
+  const onePoint = lit.length === 1 && lit[0] === state.alpha;
+  const verdict = element('tree-verdict');
+  verdict.className = `verdict ${onePoint ? 'verdict-pass' : 'verdict-alarm'}`;
+  verdict.dataset.status = onePoint ? 'pass' : 'alarm';
+  if (onePoint) {
+    verdict.innerHTML = `<span class="status-mark" aria-hidden="true">1</span><span>ONE LIT POINT AT \u03b1 = <strong id="tree-alpha-verdict">${lit[0]}</strong></span>`;
+  } else if (lit.length === 1) {
+    verdict.innerHTML = `<span class="status-mark" aria-hidden="true">!</span><span>POINT AT THE WRONG INDEX <strong id="tree-alpha-verdict">${lit[0]}</strong> \u00b7 \u03b1 = ${state.alpha}</span>`;
+  } else {
+    verdict.innerHTML = `<span class="status-mark" aria-hidden="true">!</span><span>NOT A POINT FUNCTION \u00b7 <strong id="tree-alpha-verdict">${lit.length}</strong> of ${combined.length} leaves lit</span>`;
+  }
+}
+
 function renderTree(): void {
   const [key0, key1] = state.keys;
   const nodes0 = evaluateLevel(key0, state.level);
@@ -62,7 +88,7 @@ function renderTree(): void {
   element<HTMLOutputElement>('step-value').value = `${state.level} / ${TREE_BITS}`;
   element<HTMLButtonElement>('step-back').disabled = state.level === 0;
   element<HTMLButtonElement>('step-next').disabled = state.level === TREE_BITS;
-  element('tree-alpha-verdict').textContent = String(state.alpha);
+  renderTreeVerdict(evaluateAll(key0), evaluateAll(key1));
   element<HTMLOutputElement>('alpha-value').value = String(state.alpha);
   element('serialized-key-hex').textContent = toHex(serializeKey(key0));
 
@@ -116,15 +142,43 @@ function renderMeter(domainBits: number): void {
 
 function renderCollusion(enabled: boolean): void {
   const view = element('collusion-view');
+  const serialized = state.keys.map(serializeKey) as unknown as readonly [Uint8Array, Uint8Array];
   if (!enabled) {
+    const alone = singleShareView(serialized[0]);
+    const hides = !alone.namesAPoint;
     view.className = 'collusion-view';
-    view.innerHTML = '<div class="verdict verdict-pass"><span class="status-mark" aria-hidden="true">1</span><span>ONE KEY ONLY · α remains hidden</span></div><p>A single expanded share contains many 0s and 1s but no distinguished target.</p>';
+    view.innerHTML = `<div class="verdict ${hides ? 'verdict-pass' : 'verdict-alarm'}" data-verdict="single-share" data-status="${hides ? 'pass' : 'alarm'}"><span class="status-mark" aria-hidden="true">${hides ? '1' : '!'}</span><span>${hides ? `ONE KEY ONLY · k0 alone lights ${alone.lit} of ${alone.total} leaves, naming no point` : `ONE KEY ONLY · k0 alone lights exactly 1 of ${alone.total} leaves, so this share names a point by itself`}</span></div><p>A single expanded share contains many 0s and 1s but no distinguished target; only the XOR of both shares is a point function.</p>`;
     return;
   }
-  const serialized = state.keys.map(serializeKey) as unknown as readonly [Uint8Array, Uint8Array];
   const result = collude(serialized[0], serialized[1]);
+  const recovered = result.alpha === state.alpha;
   view.className = 'collusion-view collusion-alarm';
-  view.innerHTML = `<div class="verdict verdict-alarm"><span class="status-mark" aria-hidden="true">!</span><span>SERVER SEES α = <strong>${result.alpha}</strong></span></div><div class="collusion-bits" role="list" aria-label="Point reconstructed by colluding server">${Array.from(result.reconstruction, (bit, index) => renderNode(bit, '', index, true)).join('')}</div><p>Broken assumption: one server now holds both keys and reconstructs the point function inside its own view.</p>`;
+  view.innerHTML = `<div class="verdict verdict-alarm" data-verdict="collusion-recovery" data-status="${recovered ? 'alarm' : 'mismatch'}"><span class="status-mark" aria-hidden="true">!</span><span>${recovered ? `SERVER SEES α = <strong>${result.alpha}</strong>` : `JOIN MISSED · the joined view reconstructed <strong>${result.alpha}</strong>, the client's α was ${state.alpha}`}</span></div><div class="collusion-bits" role="list" aria-label="Point reconstructed by colluding server">${Array.from(result.reconstruction, (bit, index) => renderNode(bit, '', index, true)).join('')}</div><p>Broken assumption: one server now holds both keys and reconstructs the point function inside its own view.</p>`;
+}
+
+/** Each server's own view of the query: what it holds, and how much it folded. */
+function serverViewVerdict(
+  marker: string,
+  label: string,
+  serializedKey: Uint8Array,
+  expectedParty: number,
+  expectedBytes: number,
+  folded: number,
+  scanned: number
+): string {
+  const party = deserializeKey(serializedKey).party;
+  const blind = party === expectedParty && serializedKey.length === expectedBytes && folded > 1 && folded < scanned;
+  const detail = blind
+    ? `${label} · one party-${party} key of ${serializedKey.length} B · folded ${folded.toLocaleString()} of ${scanned.toLocaleString()} records`
+    : `${label} · party-${party} key of ${serializedKey.length} B folded ${folded.toLocaleString()} of ${scanned.toLocaleString()} records — this view is not α-blind`;
+  return `<div class="mini-verdict" data-verdict="${marker}" data-status="${blind ? 'pass' : 'alarm'}"><span class="status-mark" aria-hidden="true">${blind ? '1' : '!'}</span><span>${detail}</span></div>`;
+}
+
+function collusionStateVerdict(colluding: boolean): string {
+  const detail = colluding
+    ? 'Collusion is ON · one view holds both keys, so α is not hidden from it'
+    : 'Collusion is off · neither key left its own server view';
+  return `<div class="mini-verdict" data-verdict="collusion-state" data-status="${colluding ? 'alarm' : 'pass'}"><span class="status-mark" aria-hidden="true">${colluding ? '!' : '1'}</span><span>${detail}</span></div>`;
 }
 
 async function fetchFromShelf(): Promise<void> {
@@ -156,33 +210,86 @@ async function fetchFromShelf(): Promise<void> {
       progress.value = completed;
       output.value = `${Math.round((completed / total) * 100)}%`;
     };
-  const [answer0, honestAnswer1] = await Promise.all([
+  const [fold0, fold1] = await Promise.all([
     serverAnswerProgressive(keys[0], shelf, updateProgress(progress0, percent0)),
     serverAnswerProgressive(keys[1], shelf, updateProgress(progress1, percent1))
   ]);
   const tampered = element<HTMLInputElement>('tamper-toggle').checked;
-  const answer1 = tampered ? tamperAnswer(honestAnswer1) : honestAnswer1;
-  const record = reconstruct(answer0, answer1);
+  const colluding = element<HTMLInputElement>('collusion-toggle').checked;
+  const answer1 = tampered ? tamperAnswer(fold1.answer) : fold1.answer;
+  let record: Uint8Array = new Uint8Array(0);
+  let integrityError: string | undefined;
+  try {
+    record = reconstruct(fold0.answer, answer1);
+  } catch (error) {
+    integrityError = error instanceof Error ? error.message : String(error);
+  }
   const expected = shelf[alpha];
   const matches = sameBytes(record, expected);
+  const differing =
+    record.length === expected.length
+      ? expected.reduce((count, byte, index) => count + (byte === record[index] ? 0 : 1), 0)
+      : expected.length;
 
   element<HTMLElement>('pir-awaiting').hidden = true;
-  element('privacy-verdicts').innerHTML = `<div class="mini-verdict" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>Server 0 received one ${keys[0].length}-byte key</span></div><div class="mini-verdict" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>Server 1 received one ${keys[1].length}-byte key</span></div><div class="mini-verdict" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>Collusion remains off</span></div>`;
+  const expectedKeyBytes = serializedKeyParts(SHELF_BITS).total;
+  element('privacy-verdicts').innerHTML = [
+    serverViewVerdict('server-view-0', 'Server 0', keys[0], 0, expectedKeyBytes, fold0.foldedRecords, fold0.scannedRecords),
+    serverViewVerdict('server-view-1', 'Server 1', keys[1], 1, expectedKeyBytes, fold1.foldedRecords, fold1.scannedRecords),
+    collusionStateVerdict(colluding)
+  ].join('');
   element('retrieved-record').textContent = toHex(record);
   element('expected-record').textContent = toHex(expected);
   const verdict = element('record-verdict');
   verdict.className = `verdict ${matches ? 'verdict-pass' : 'verdict-alarm'}`;
   verdict.dataset.status = matches ? 'pass' : 'alarm';
   verdict.innerHTML = matches
-    ? '<span class="status-mark" aria-hidden="true">1</span><span>RETRIEVED · byte-for-byte match with shelf[α]</span>'
-    : '<span class="status-mark" aria-hidden="true">!</span><span>RETRIEVED — AND WRONG · no PIR authentication failure was raised</span>';
+    ? `<span class="status-mark" aria-hidden="true">1</span><span>RETRIEVED · byte-for-byte match with shelf[α] across all ${expected.length} bytes</span>`
+    : `<span class="status-mark" aria-hidden="true">!</span><span>RETRIEVED — AND WRONG · ${differing} of ${expected.length} bytes differ from shelf[α]; no PIR authentication failure was raised</span>`;
+  renderIntegrityEvidence(tampered, matches, differing, expected.length, record.length, integrityError);
   element<HTMLElement>('pir-result').hidden = false;
   element('fetch-status').textContent = `Both full-domain folds completed in ${Math.round(performance.now() - started).toLocaleString()} ms.`;
   button.disabled = false;
 }
 
+/**
+ * The §4.1d negative claim, stated as evidence from this run rather than as
+ * standing prose. `unexercised` is the honest reading when nothing was altered;
+ * `contradicted` is what shows if a tampered run still reconstructs shelf[α],
+ * which would mean the page did not demonstrate the missing check at all.
+ */
+function renderIntegrityEvidence(
+  tampered: boolean,
+  matches: boolean,
+  differing: number,
+  width: number,
+  recovered: number,
+  integrityError: string | undefined
+): void {
+  const claim = element('negative-claim');
+  const evidence = element('integrity-evidence');
+  if (!tampered) {
+    claim.dataset.status = 'unexercised';
+    evidence.textContent = 'Not exercised on this run: no answer was altered, so the protocol was never asked to catch one.';
+    return;
+  }
+  if (integrityError !== undefined) {
+    claim.dataset.status = 'contradicted';
+    evidence.textContent = `Reconstruction refused the altered answer (${integrityError}). That is a length check, not authentication.`;
+    return;
+  }
+  if (matches) {
+    claim.dataset.status = 'contradicted';
+    evidence.textContent = 'Server 1 altered its answer and the reconstruction still matched shelf[α], so this run does not demonstrate the missing check.';
+    return;
+  }
+  claim.dataset.status = 'alarm';
+  evidence.textContent = `Exercised: server 1 flipped one bit, reconstruct() returned ${recovered} bytes and raised nothing, and ${differing} of ${width} bytes now differ from shelf[α].`;
+}
+
 export function boot(): void {
   renderTree();
+  renderCollusion(false);
   renderMeter(16);
   const zeroExpansion = expandSeed(new Uint8Array(16));
   element('zero-seed-proof').textContent = `L ${toHex(zeroExpansion.leftSeed).slice(0, 8)} · R ${toHex(zeroExpansion.rightSeed).slice(0, 8)}`;

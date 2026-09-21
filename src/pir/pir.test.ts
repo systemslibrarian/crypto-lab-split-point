@@ -25,9 +25,22 @@ describe('two-server XOR PIR', () => {
     const shelf = createShelf(16);
     const [key] = createQuery(5, 4);
     const progress: number[] = [];
-    const answer = await serverAnswerProgressive(key, shelf, (completed) => progress.push(completed));
-    expect(answer).toEqual(serverAnswer(key, shelf));
+    const fold = await serverAnswerProgressive(key, shelf, (completed) => progress.push(completed));
+    expect(fold.answer).toEqual(serverAnswer(key, shelf));
     expect(progress.at(-1)).toBe(16);
+  });
+
+  it('counts the records its own share selected, which is neither none nor one', async () => {
+    const shelf = createShelf(256);
+    const [key0, key1] = createQuery(5, 8);
+    const fold0 = await serverAnswerProgressive(key0, shelf, () => {});
+    const fold1 = await serverAnswerProgressive(key1, shelf, () => {});
+    expect(fold0.scannedRecords).toBe(256);
+    expect(fold1.scannedRecords).toBe(256);
+    // The two folds differ by exactly the one record the point function selects.
+    expect(Math.abs(fold0.foldedRecords - fold1.foldedRecords)).toBe(1);
+    expect(fold0.foldedRecords).toBeGreaterThan(1);
+    expect(fold0.foldedRecords).toBeLessThan(256);
   });
 
   it('folds records wider than one AES block without truncation', () => {

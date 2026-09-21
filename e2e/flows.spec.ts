@@ -22,10 +22,27 @@ test('moving alpha regenerates both keys and moves only the combined point', asy
 test('collusion deliberately exposes alpha and switching it off removes the alarm', async ({ page }) => {
   await page.goto('.');
   await page.locator('#collusion-toggle').check();
-  await expect(page.locator('.collusion-alarm')).toContainText('SERVER SEES α = 11');
+  const joined = page.locator('[data-verdict="collusion-recovery"]');
+  await expect(joined).toHaveAttribute('data-status', 'alarm');
+  await expect(joined).toContainText('SERVER SEES α = 11');
+  // The exposed index is the one the joined view reconstructs, not the slider's.
+  const lit = await page.locator('.collusion-bits .tree-node').evaluateAll((nodes) =>
+    nodes.findIndex((node) => node.classList.contains('node-lit'))
+  );
+  expect(lit).toBe(11);
+
   await page.locator('#collusion-toggle').uncheck();
   await expect(page.locator('.collusion-alarm')).toHaveCount(0);
-  await expect(page.locator('#collusion-view')).toContainText('α remains hidden');
+  const alone = page.locator('[data-verdict="single-share"]');
+  await expect(alone).toHaveAttribute('data-status', 'pass');
+  // "One key hides α" is rendered as a measured lit count over the real share.
+  const text = (await alone.textContent()) ?? '';
+  const counted = text.match(/lights (\d+) of (\d+) leaves/);
+  expect(counted, `the single-share verdict reports a measured count: ${text}`).not.toBeNull();
+  const [, litLeaves, totalLeaves] = counted as RegExpMatchArray;
+  expect(Number(totalLeaves)).toBe(16);
+  expect(Number(litLeaves)).not.toBe(1);
+  expect(Number(litLeaves)).toBeGreaterThan(0);
 });
 
 test('invalid shelf alpha fails closed with its cause', async ({ page }) => {

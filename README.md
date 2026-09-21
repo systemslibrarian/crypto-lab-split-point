@@ -8,11 +8,13 @@ The teaching implementation supports domains from $2^4$ through $2^{16}$. Its ps
 
 ## Exhibits
 
-1. **Tree Microscope** — step two real DPF evaluations level by level, inspect their seed/control state, and XOR the leaf rows into one lit point at α.
-2. **Private Shelf** — generate two fresh keys, have two independent server functions scan 65,536 deterministic 16-byte records, and compare the reconstructed record with `shelf[α]`.
+1. **Tree Microscope** — step two real DPF evaluations level by level, inspect their seed/control state, and XOR the leaf rows into one lit point at α. The headline verdict reports the index the two shares actually reconstruct, read back from `EvalAll`, not the index the slider asked for.
+2. **Private Shelf** — generate two fresh keys, have two independent server functions scan 65,536 deterministic 16-byte records, and compare the reconstructed record with `shelf[α]`. Each server tile reports its own party, its key length, and how many of the 65,536 records its share actually selected into the fold.
 3. **Query Scale** — compare one measured serialized DPF key with the full-domain Chor XOR query and verify that the displayed key parts sum to the measured total.
-4. **Collusion** — deliberately give both keys to one server and watch α become visible inside that server’s view.
-5. **Tampering** — flip one bit in a server answer. Every privacy condition still passes, but the client retrieves the wrong record because this PIR does not authenticate answers.
+4. **Collusion** — deliberately give both keys to one server and watch α become visible inside that server’s view. With collusion off, the page states the one-key case as a count: how many leaves the single expanded share lights, which is what “no distinguished target” means.
+5. **Tampering** — flip one bit in a server answer. Every privacy condition still passes, but the client retrieves the wrong record because this PIR does not authenticate answers. The page names the damage from that run: how many bytes of the record differ, and that reconstruction raised nothing.
+
+Every verdict the page renders carries a `data-verdict` marker and turns on a value the page computed. None of them is a fixed string.
 
 ## When to Use It
 
@@ -28,8 +30,8 @@ Move α and regenerate the two trees, step backward through their expansion, fet
 
 ## What Can Go Wrong
 
-- **Server collusion:** either key alone hides α; both keys reconstruct the point function and reveal it.
-- **Malicious answers:** a server can corrupt the record without triggering a protocol failure. The page’s `shelf[α]` comparison is an external teaching oracle, not a PIR authentication mechanism.
+- **Server collusion:** either key alone hides α — the page measures this as the lit count of one expanded share — and both keys together reconstruct the point function and reveal it.
+- **Malicious answers:** a server can corrupt the record without triggering a protocol failure. The page’s `shelf[α]` comparison is an external teaching oracle, not a PIR authentication mechanism, and it reports the corrupted byte count from the run that produced it.
 - **Malformed inputs:** out-of-domain α, invalid key lengths/control bits, a shelf with the wrong shape, and mismatched server-answer lengths are rejected with named causes.
 - **Implementation leakage:** this inspectable TypeScript does not claim constant-time execution or side-channel resistance.
 - **Work remains linear:** compact queries do not make the server scan sublinear; both servers evaluate the entire shelf.
@@ -71,11 +73,15 @@ npm run test:a11y
 
 ## Build & Verify
 
-The repository has **31 automated checks**: 19 Vitest unit/property tests and 12 Playwright browser tests. Unit tests cover every supported domain size, independent point-vector reconstruction, single-point versus full-domain evaluation, strict serialization, server API isolation, progressive and synchronous PIR reconstruction, record widths beyond one AES block, malformed inputs, collusion, and answer tampering. Current measured core coverage is 94.82% statements, 96.39% lines, 97.72% functions, and 88.88% branches.
+The repository has **45 automated checks**: 24 Vitest unit/property tests and 21 Playwright browser tests. Unit tests cover every supported domain size, independent point-vector reconstruction, single-point versus full-domain evaluation, strict serialization, server API isolation, progressive and synchronous PIR reconstruction, the measured fold count each server's own share produces, the single-key view, record widths beyond one AES block, malformed inputs, collusion, and answer tampering. Current measured core coverage is 95% statements, 96.51% lines, 97.77% functions, and 88.88% branches.
 
 There are **0 published known-answer tests** for this exact randomized BGI tree-DPF variant: a search of the primary paper and appendices found proofs and algorithms but no fixed seed/key/output vectors. No vectors were invented. Correctness instead uses randomized properties at every supported domain size plus an independent naive point vector compared leaf by leaf.
 
-The Playwright suite builds before serving and checks the production bundle on the fleet-unique port `4698`. It includes rendered mathematical claims, honest/tampered/colluding flows, retirement and no-op behavior, `[hidden]` containment, desktop/mobile reflow, axe WCAG 2.1 A/AA, arithmetic text contrast, and per-side non-text control contrast. GitHub Pages deploys only after unit, build, and browser gates pass.
+The Playwright suite builds before serving and checks the production bundle on the fleet-unique port `4698`. It includes rendered mathematical claims, honest/tampered/colluding flows, retirement and no-op behavior, `[hidden]` containment, desktop/mobile reflow, axe WCAG 2.1 A/AA, arithmetic text contrast, and per-side non-text control contrast.
+
+A separate **verdict coverage** gate walks the page through every state that can render an outcome and derives coverage from the DOM rather than from a list. It fails when a `data-verdict` marker has no mutation recorded in `e2e/verdict-mutations.json`, when a registered mutation names a verdict the page never renders, when a marker renders without a status, and when verdict wording or verdict styling appears outside a marker — the raw banner a careless builder adds later. It also injects such a banner and asserts the scan catches it, so the scan cannot pass by being blind. Each entry in that file names a mutation that has been applied and watched to turn its own assertion red, with the unmutated baseline passing in the same run.
+
+That gate is its own job in `deploy.yml` and a required check on `main`, and both `deploy` and `dependabot-auto-merge` declare `needs: [build, verdict-coverage]`, so nothing ships past it. GitHub Pages deploys only after the unit, build, browser, and verdict-coverage gates pass.
 
 ## Performance
 

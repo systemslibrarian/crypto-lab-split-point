@@ -22,11 +22,19 @@ export function serverAnswer(serializedKey: Uint8Array, shelf: ReadonlyArray<Uin
   return answer;
 }
 
+export interface ProgressiveAnswer {
+  answer: Uint8Array;
+  /** How many shelf records this server's own share selected into the fold. */
+  foldedRecords: number;
+  /** How many records the server scanned, which is always the whole shelf. */
+  scannedRecords: number;
+}
+
 export async function serverAnswerProgressive(
   serializedKey: Uint8Array,
   shelf: ReadonlyArray<Uint8Array>,
   onProgress: (completed: number, total: number) => void
-): Promise<Uint8Array> {
+): Promise<ProgressiveAnswer> {
   const key = deserializeKey(serializedKey);
   const expectedRecords = 2 ** key.domainBits;
   if (shelf.length !== expectedRecords) {
@@ -39,11 +47,13 @@ export async function serverAnswerProgressive(
 
   const share = evaluateAll(key);
   const answer = new Uint8Array(width);
+  let foldedRecords = 0;
   const chunkSize = Math.max(16, Math.ceil(shelf.length / 32));
   for (let start = 0; start < shelf.length; start += chunkSize) {
     const end = Math.min(start + chunkSize, shelf.length);
     for (let index = start; index < end; index += 1) {
       if (share[index] === 0) continue;
+      foldedRecords += 1;
       for (let offset = 0; offset < width; offset += 1) answer[offset] ^= shelf[index][offset];
     }
     onProgress(end, shelf.length);
@@ -52,7 +62,7 @@ export async function serverAnswerProgressive(
       else setTimeout(resolve, 0);
     });
   }
-  return answer;
+  return { answer, foldedRecords, scannedRecords: shelf.length };
 }
 
 // [extension] point: a batched server can share this fold while changing the query shape.

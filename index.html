@@ -91,7 +91,7 @@
         <section class="lab-section mechanism" aria-labelledby="mechanism-title">
           <div class="section-heading">
             <div><p class="section-index">01 · TREE MICROSCOPE</p><h2 id="mechanism-title">One point, split across two trees</h2></div>
-            <div class="verdict verdict-pass" id="tree-verdict" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>ONE LIT POINT AT α = <strong id="tree-alpha-verdict">11</strong></span></div>
+            <div class="verdict verdict-pass" id="tree-verdict" data-verdict="tree-point" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>ONE LIT POINT AT α = <strong id="tree-alpha-verdict">11</strong></span></div>
           </div>
 
           <div class="control-deck">
@@ -154,12 +154,12 @@
                 <div><span class="trace-label">Retrieved record</span><code id="retrieved-record"></code></div>
                 <div><span class="trace-label">shelf[α] teaching oracle</span><code id="expected-record"></code></div>
               </div>
-              <div class="verdict" id="record-verdict" role="status"></div>
+              <div class="verdict" id="record-verdict" data-verdict="record-match" role="status"></div>
             </div>
           </div>
-          <aside class="negative-claim" id="negative-claim">
+          <aside class="negative-claim" id="negative-claim" data-verdict="no-authentication" data-status="unexercised" role="status">
             <span class="status-mark" aria-hidden="true">!</span>
-            <div><strong>PRIVACY IS NOT INTEGRITY</strong><p>This two-server PIR hides which record is read; it does not authenticate what is returned. A server that flips one bit corrupts the record, and the protocol has no authentication check to fail. The shelf comparison above is an outside teaching oracle, not part of PIR.</p></div>
+            <div><strong>PRIVACY IS NOT INTEGRITY</strong><p>This two-server PIR hides which record is read; it does not authenticate what is returned. A server that flips one bit corrupts the record, and the protocol has no authentication check to fail. The shelf comparison above is an outside teaching oracle, not part of PIR.</p><p class="claim-evidence" id="integrity-evidence">Not exercised yet: run a fetch with the tamper toggle on to see what this protocol does not catch.</p></div>
           </aside>
         </section>
 
@@ -183,7 +183,7 @@
           <div class="section-heading"><div><p class="section-index">04 · TRUST BOUNDARY</p><h2 id="threat-title">Break the non-collusion assumption</h2></div></div>
           <div class="threat-grid">
             <label class="toggle-row collusion-toggle" for="collusion-toggle"><span><strong>Give one server both keys</strong><small>BROKEN mode · violates non-collusion</small></span><input id="collusion-toggle" type="checkbox" /></label>
-            <div class="collusion-view" id="collusion-view" role="status" aria-live="polite"><div class="verdict verdict-pass"><span class="status-mark" aria-hidden="true">1</span><span>ONE KEY ONLY · α remains hidden</span></div><p>A single expanded share contains many 0s and 1s but no distinguished target.</p></div>
+            <div class="collusion-view" id="collusion-view" role="status" aria-live="polite"></div>
           </div>
         </section>
 

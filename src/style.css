@@ -53,6 +53,8 @@ h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp
 .verdict, .mini-verdict { display: flex; align-items: center; gap: .6rem; min-height: 42px; border: 1px solid; border-radius: 6px; padding: .62rem .75rem; font: 700 .76rem/1.35 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .02em; }
 .verdict-pass, .mini-verdict { color: #c9f9e1; border-color: #4eaa82; background-color: var(--success-bg); }
 .verdict-alarm { color: #ffd9d9; border-color: #ce676f; background-color: var(--alarm-bg); }
+.mini-verdict[data-status="alarm"] { color: #ffd9d9; border-color: #ce676f; background-color: var(--alarm-bg); }
+.negative-claim .claim-evidence { margin: .55rem 0 0; font: 700 .72rem/1.45 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .02em; }
 .status-mark { display: inline-grid; flex: 0 0 auto; place-items: center; width: 24px; height: 24px; border: 1px solid currentColor; border-radius: 50%; font-weight: 800; }
 
 .control-deck { display: grid; grid-template-columns: minmax(13rem, 1fr) auto auto; align-items: end; gap: 1rem; margin-bottom: .8rem; padding: 1rem; border: 1px solid var(--border); border-radius: 6px; background-color: var(--surface-soft); }

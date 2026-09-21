@@ -40,8 +40,29 @@ jobs:
         with:
           path: dist
 
+  # C: coverage is derived by walking the rendered page, and a marker with no
+  # §4.1c mutation, or a verdict rendered outside a marker, fails here. It is a
+  # named job of its own so it can be a required check; deploy needs it, so a
+  # rule that could only warn cannot ship.
+  verdict-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Verdict coverage gate
+        run: npm run test:verdicts
+
   deploy:
-    needs: build
+    needs: [build, verdict-coverage]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -57,7 +78,7 @@ jobs:
         uses: actions/deploy-pages@v5
 
   dependabot-auto-merge:
-    needs: build
+    needs: [build, verdict-coverage]
     if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10

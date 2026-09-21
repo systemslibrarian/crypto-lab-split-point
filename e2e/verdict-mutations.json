@@ -1,0 +1,61 @@
+{
+  "note": "One §4.1c mutation per rendered verdict marker. A kill counts only when the unmutated baseline passed in the same run and the failure is that verdict's own assertion. Recorded failures are in the commit body.",
+  "markers": {
+    "tree-point": {
+      "renders": "#tree-verdict — ONE LIT POINT AT α = n",
+      "computedFrom": "evaluateAll(k0) XOR evaluateAll(k1), reading back the lit index",
+      "mutation": "src/dpf/gen.ts — flip every direction bit: ((alpha >>> (domainBits - level - 1)) & 1) becomes (((alpha >>> (domainBits - level - 1)) & 1) ^ 1)",
+      "expectedFlip": "point lands at 15 - α, so data-status becomes alarm and the text becomes POINT AT THE WRONG INDEX",
+      "assertedBy": "e2e/claims.spec.ts"
+    },
+    "single-share": {
+      "renders": "#collusion-view verdict with the collusion toggle off — ONE KEY ONLY · k0 alone lights n of 16 leaves",
+      "computedFrom": "singleShareView(k0).lit / .namesAPoint",
+      "mutation": "src/attack/single-view.ts — namesAPoint: lit === 1 becomes namesAPoint: lit >= 1",
+      "expectedFlip": "a share lighting ~8 leaves is reported as naming a point, so data-status becomes alarm",
+      "assertedBy": "e2e/flows.spec.ts"
+    },
+    "collusion-recovery": {
+      "renders": "#collusion-view verdict with the collusion toggle on — SERVER SEES α = n",
+      "computedFrom": "collude(k0, k1).alpha compared with the client's secret α",
+      "mutation": "src/attack/collude.ts — alpha: lit[0][0] becomes alpha: (lit[0][0] + 1) % reconstruction.length",
+      "expectedFlip": "recovered index no longer equals α, so data-status becomes mismatch and the text becomes JOIN MISSED",
+      "assertedBy": "e2e/flows.spec.ts"
+    },
+    "server-view-0": {
+      "renders": "first #privacy-verdicts tile — Server 0 · one party-0 key of 290 B · folded n of 65,536 records",
+      "computedFrom": "deserializeKey(keys[0]).party, keys[0].length, and fold0.foldedRecords from the real fold",
+      "mutation": "src/pir/server.ts — in serverAnswerProgressive, if (share[index] === 0) continue becomes if (share[index] === 0 || index !== 0) continue",
+      "expectedFlip": "the server folds at most the first record, so folded > 1 fails and data-status becomes alarm",
+      "assertedBy": "e2e/claims.spec.ts"
+    },
+    "server-view-1": {
+      "renders": "second #privacy-verdicts tile — Server 1 · one party-1 key of 290 B · folded n of 65,536 records",
+      "computedFrom": "deserializeKey(keys[1]).party, keys[1].length, and fold1.foldedRecords from the real fold",
+      "mutation": "src/dpf/serialize.ts — bytes[0] = (key.party << 7) | key.domainBits becomes bytes[0] = key.domainBits, dropping the party bit from the wire format",
+      "expectedFlip": "server 1's key deserializes as party 0, so only this tile's data-status becomes alarm while server-view-0 stays pass",
+      "assertedBy": "e2e/claims.spec.ts"
+    },
+    "collusion-state": {
+      "renders": "third #privacy-verdicts tile — Collusion is off / Collusion is ON",
+      "computedFrom": "the live state of #collusion-toggle at fetch time",
+      "mutation": "src/ui/app.ts — const colluding = element<HTMLInputElement>('collusion-toggle').checked becomes const colluding = false",
+      "expectedFlip": "a fetch run with collusion switched on still reports the tile as pass",
+      "assertedBy": "e2e/claims.spec.ts"
+    },
+    "record-match": {
+      "renders": "#record-verdict — RETRIEVED · byte-for-byte match with shelf[α] / RETRIEVED — AND WRONG",
+      "computedFrom": "sameBytes(reconstruct(answer0, answer1), shelf[α]) and the differing byte count",
+      "mutation": "src/pir/client.ts — reconstruct returns answer0.map((byte, index) => byte ^ (answer1[index] & 0)), dropping server 1 from the XOR",
+      "expectedFlip": "the reconstruction no longer equals shelf[alpha], so data-status becomes alarm on the honest run",
+      "assertedBy": "e2e/claims.spec.ts"
+    },
+    "no-authentication": {
+      "renders": "#negative-claim — the run-level evidence in #integrity-evidence",
+      "computedFrom": "whether a tampered answer reconstructed to something other than shelf[α] with no error raised",
+      "mutation": "src/attack/tamper.ts — tampered[0] ^= 1 becomes tampered[0] ^= 0",
+      "expectedFlip": "the tampered run matches shelf[α], so data-status becomes contradicted rather than alarm",
+      "assertedBy": "e2e/claims.spec.ts"
+    }
+  }
+}

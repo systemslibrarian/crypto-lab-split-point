@@ -89,6 +89,15 @@ export async function driveAllStates(page: Page, label: string): Promise<void> {
   await page.locator('#collusion-toggle').check();
   await expect(page.locator('.collusion-alarm')).toContainText('SERVER SEES α');
   await scan(page, `${label}: collusion alarm`);
+  // The alarm palette on the privacy tiles and the run-level negative claim only
+  // paints when a fetch runs with both broken modes on, so scan that state too.
+  await page.locator('#tamper-toggle').check();
+  await page.locator('#shelf-alpha').fill('7');
+  await page.getByRole('button', { name: 'Fetch privately' }).click();
+  await expect(page.locator('[data-verdict="collusion-state"]')).toHaveAttribute('data-status', 'alarm');
+  await expect(page.locator('[data-verdict="no-authentication"]')).toHaveAttribute('data-status', 'alarm');
+  await scan(page, `${label}: colluding and tampered verdicts`);
+  await page.locator('#tamper-toggle').uncheck();
   await page.locator('#collusion-toggle').uncheck();
   const closedScope = page.locator('.scope-columns details').nth(1);
   await closedScope.locator('summary').click();
