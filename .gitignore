@@ -5,3 +5,10 @@ test-results/
 playwright-report/
 *.log
 .DS_Store
+
+# Local working copy of the catalog standard (crypto-lab/audits/_MASTER-TEMPLATE.md).
+# Deliberately untracked: a committed copy ages in place and becomes a second,
+# wrong standard. Keep the file on disk; never commit it. See audits/kickoff.md.
+/template.md
+/CRYPTO-LAB-TEMPLATE*.md
+/_MASTER-TEMPLATE.md
