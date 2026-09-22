@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { expectVerdict } from './verdict-assertions';
 
 test('tree stepper exposes each real expansion level', async ({ page }) => {
   await page.goto('.');
@@ -22,9 +23,10 @@ test('moving alpha regenerates both keys and moves only the combined point', asy
 test('collusion deliberately exposes alpha and switching it off removes the alarm', async ({ page }) => {
   await page.goto('.');
   await page.locator('#collusion-toggle').check();
-  const joined = page.locator('[data-verdict="collusion-recovery"]');
-  await expect(joined).toHaveAttribute('data-status', 'alarm');
-  await expect(joined).toContainText('SERVER SEES α = 11');
+  await expectVerdict(page, 'collusion-recovery', {
+    status: 'alarm',
+    text: 'SERVER SEES α = 11'
+  });
   // The exposed index is the one the joined view reconstructs, not the slider's.
   const lit = await page.locator('.collusion-bits .tree-node').evaluateAll((nodes) =>
     nodes.findIndex((node) => node.classList.contains('node-lit'))
@@ -34,8 +36,12 @@ test('collusion deliberately exposes alpha and switching it off removes the alar
   await page.locator('#collusion-toggle').uncheck();
   await expect(page.locator('.collusion-alarm')).toHaveCount(0);
   const alone = page.locator('[data-verdict="single-share"]');
-  await expect(alone).toHaveAttribute('data-status', 'pass');
-  // "One key hides α" is rendered as a measured lit count over the real share.
+  // "One key hides α" is rendered as a measured lit count over the real share,
+  // and the words, the status and the green plate are asserted as one claim.
+  await expectVerdict(page, 'single-share', {
+    status: 'pass',
+    text: [/ONE KEY ONLY · k0 alone lights \d+ of \d+ leaves, naming no point/]
+  });
   const text = (await alone.textContent()) ?? '';
   const counted = text.match(/lights (\d+) of (\d+) leaves/);
   expect(counted, `the single-share verdict reports a measured count: ${text}`).not.toBeNull();

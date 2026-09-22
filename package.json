@@ -10,7 +10,7 @@
     "test": "vitest run --coverage",
     "test:unit": "vitest run",
     "test:a11y": "playwright test",
-    "test:verdicts": "playwright test e2e/verdict-coverage.spec.ts"
+    "test:verdicts": "playwright test --project=verdict-ledger"
   },
   "dependencies": {
     "@noble/ciphers": "^2.0.1"
