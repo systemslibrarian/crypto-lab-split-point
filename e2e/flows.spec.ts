@@ -25,7 +25,6 @@ test('collusion deliberately exposes alpha and switching it off removes the alar
   await page.locator('#collusion-toggle').check();
   await expectVerdict(page, 'collusion-recovery', {
     status: 'alarm',
-    tone: 'alarm',
     text: 'SERVER SEES α = 11'
   });
   // The exposed index is the one the joined view reconstructs, not the slider's.
@@ -41,7 +40,6 @@ test('collusion deliberately exposes alpha and switching it off removes the alar
   // and the words, the status and the green plate are asserted as one claim.
   await expectVerdict(page, 'single-share', {
     status: 'pass',
-    tone: 'pass',
     text: [/ONE KEY ONLY · k0 alone lights \d+ of \d+ leaves, naming no point/]
   });
   const text = (await alone.textContent()) ?? '';

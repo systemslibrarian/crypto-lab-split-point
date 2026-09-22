@@ -1,61 +1,101 @@
 {
-  "note": "One §4.1c mutation per rendered marker, in both families: `markers` are the data-verdict outcomes, `claims` are the data-claim measurements. A kill counts only when the unmutated baseline passed in the same run and the failure is that marker's own assertion, and every record's assertion must go through expectVerdict/expectClaim so words, value and painted state are one claim. Recorded failures are in the commit body.",
+  "note": "One §4.1c mutation per rendered marker, in both families: `markers` are the data-verdict outcomes, `claims` are the data-claim measurements. A kill counts only when the unmutated baseline passed in the same run and the failure is that marker's own assertion. `assertedBy` names the ONE test whose call to expectVerdict/expectClaim must kill it, and declares the part of that call's expectation the record decides in advance: `status` is the outcome the assertion must require, `says` one text fragment it must hand the helper verbatim (a `re:` prefix is a RegExp source). The helpers append every triple they execute to a run-scoped ledger and e2e/verdict-ledger.spec.ts asserts each record's triple is in it, so the guarantee rests on the run rather than on a regex over spec source — which a comment, a tautological argument, or an unrelated line elsewhere in the same file all satisfied. Recorded failures are in the commit body.",
   "markers": {
     "tree-point": {
       "renders": "#tree-verdict — ONE LIT POINT AT α = n",
       "computedFrom": "evaluateAll(k0) XOR evaluateAll(k1), reading back the lit index",
       "mutation": "src/dpf/gen.ts — flip every direction bit: ((alpha >>> (domainBits - level - 1)) & 1) becomes (((alpha >>> (domainBits - level - 1)) & 1) ^ 1)",
       "expectedFlip": "point lands at 15 - α, so data-status becomes alarm and the text becomes POINT AT THE WRONG INDEX",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "rendered leaf shares XOR to one point at the displayed alpha",
+        "status": "pass",
+        "says": "ONE LIT POINT AT"
+      }
     },
     "single-share": {
       "renders": "#collusion-view verdict with the collusion toggle off — ONE KEY ONLY · k0 alone lights n of 16 leaves",
       "computedFrom": "singleShareView(k0).lit / .namesAPoint",
       "mutation": "src/attack/single-view.ts — namesAPoint: lit === 1 becomes namesAPoint: lit >= 1",
       "expectedFlip": "a share lighting ~8 leaves is reported as naming a point, so data-status becomes alarm and the plate turns red",
-      "assertedBy": "e2e/flows.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/flows.spec.ts",
+        "test": "collusion deliberately exposes alpha and switching it off removes the alarm",
+        "status": "pass",
+        "says": "re:ONE KEY ONLY · k0 alone lights \\d+ of \\d+ leaves, naming no point"
+      }
     },
     "collusion-recovery": {
       "renders": "#collusion-view verdict with the collusion toggle on — SERVER SEES α = n",
       "computedFrom": "collude(k0, k1).alpha compared with the client's secret α",
       "mutation": "src/attack/collude.ts — alpha: lit[0][0] becomes alpha: (lit[0][0] + 1) % reconstruction.length",
       "expectedFlip": "recovered index no longer equals α, so data-status becomes mismatch and the text becomes JOIN MISSED",
-      "assertedBy": "e2e/flows.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/flows.spec.ts",
+        "test": "collusion deliberately exposes alpha and switching it off removes the alarm",
+        "status": "alarm",
+        "says": "SERVER SEES α = 11"
+      }
     },
     "server-view-0": {
       "renders": "first #privacy-verdicts tile — Server 0 · one party-0 key of 290 B · folded n of 65,536 records",
       "computedFrom": "deserializeKey(keys[0]).party, keys[0].length, and fold0.foldedRecords from the real fold",
       "mutation": "src/pir/server.ts — in serverAnswerProgressive, if (share[index] === 0) continue becomes if (share[index] === 0 || index !== 0) continue",
       "expectedFlip": "the server folds at most the first record, so folded > 1 fails and data-status becomes alarm",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "each server view verdict reports its own measured fold, not a fixed line",
+        "status": "pass",
+        "says": "re:folded [\\d,]+ of [\\d,]+ records"
+      }
     },
     "server-view-1": {
       "renders": "second #privacy-verdicts tile — Server 1 · one party-1 key of 290 B · folded n of 65,536 records",
       "computedFrom": "deserializeKey(keys[1]).party, keys[1].length, and fold1.foldedRecords from the real fold",
       "mutation": "src/dpf/serialize.ts — bytes[0] = (key.party << 7) | key.domainBits becomes bytes[0] = key.domainBits, dropping the party bit from the wire format",
       "expectedFlip": "server 1's key deserializes as party 0, so only this tile's data-status becomes alarm while server-view-0 stays pass",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "each server view verdict reports its own measured fold, not a fixed line",
+        "status": "pass",
+        "says": "re:folded [\\d,]+ of [\\d,]+ records"
+      }
     },
     "collusion-state": {
       "renders": "third #privacy-verdicts tile — Collusion is off / Collusion is ON",
       "computedFrom": "the live state of #collusion-toggle at fetch time",
       "mutation": "src/ui/app.ts — const colluding = element<HTMLInputElement>('collusion-toggle').checked becomes const colluding = false",
       "expectedFlip": "a fetch run with collusion switched on still reports the tile as pass",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "the collusion state verdict follows the live trust boundary",
+        "status": "alarm",
+        "says": "Collusion is ON · one view holds both keys"
+      }
     },
     "record-match": {
       "renders": "#record-verdict — RETRIEVED · byte-for-byte match with shelf[α] / RETRIEVED — AND WRONG",
       "computedFrom": "sameBytes(reconstruct(answer0, answer1), shelf[α]) and the differing byte count",
       "mutation": "src/ui/app.ts — verdict.className = `verdict ${matches ? 'verdict-pass' : 'verdict-alarm'}` becomes verdict.className = 'verdict verdict-pass', pinning the plate green while data-status and the words still follow the run",
       "expectedFlip": "a corrupted record is announced as RETRIEVED — AND WRONG on a green pass plate; expectVerdict's tone assertion fails where the old text-and-status assertions both passed",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "tampering violates integrity while every privacy verdict remains green",
+        "status": "alarm",
+        "says": "RETRIEVED — AND WRONG"
+      }
     },
     "no-authentication": {
       "renders": "#negative-claim — the run-level evidence in #integrity-evidence",
       "computedFrom": "whether a tampered answer reconstructed to something other than shelf[α] with no error raised",
       "mutation": "src/attack/tamper.ts — tampered[0] ^= 1 becomes tampered[0] ^= 0",
       "expectedFlip": "the tampered run matches shelf[α], so data-status becomes contradicted rather than alarm",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "the negative claim reports the run that exercised it",
+        "status": "alarm",
+        "says": "does not authenticate what is returned"
+      }
     }
   },
   "claims": {
@@ -64,56 +104,88 @@
       "computedFrom": "serializeKey(generateDpf(0, domainBits)[0]).length for the domain under test",
       "mutation": "src/ui/app.ts — renderClaim('key-byte-label', serialized.length, `${serialized.length.toLocaleString()} bytes`) becomes renderClaim('key-byte-label', parts.correctionWords, `${parts.correctionWords.toLocaleString()} bytes`)",
       "expectedFlip": "the meter states the correction-word region as the whole key, so the claim no longer equals the measured hex dump",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "key-size claims are measured per level across every domain the page offers",
+        "says": "bytes"
+      }
     },
     "chor-query-bytes": {
       "renders": "#chor-byte-label in the meter — 8,192 bytes · 65,536 bits",
       "computedFrom": "domainSize / 8, the one-bit-per-record Chor baseline",
       "mutation": "src/ui/app.ts — const chorBytes = domainSize / 8 becomes const chorBytes = domainSize / 4",
       "expectedFlip": "the baseline claims two bits per record, so chor * 8 no longer equals the domain size it names",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "key-size claims are measured per level across every domain the page offers",
+        "says": "bits"
+      }
     },
     "key-part-root": {
       "renders": "#part-root in the parts list — 17 B of root material",
       "computedFrom": "serializedKeyParts(domainBits).rootMaterial, checked against the header byte plus the root seed in the dump",
       "mutation": "src/ui/app.ts — renderClaim('part-root', parts.rootMaterial, `${parts.rootMaterial} B`) becomes renderClaim('part-root', parts.rootMaterial - 1, `${parts.rootMaterial - 1} B`). The deeper serializer mutation (ROOT_MATERIAL_BYTES = SECURITY_BYTES) was run first and rejected as evidence: it stops the key round-tripping and takes the whole suite red, which is not a readable kill on this marker.",
       "expectedFlip": "root material is claimed as 16 B against the 17 B that λ, measured from the per-level slope, requires, and the parts stop accounting for the measured total",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "key-size claims are measured per level across every domain the page offers",
+        "says": "B"
+      }
     },
     "key-part-levels": {
       "renders": "#part-levels in the parts list — 272 B of per-level corrections",
       "computedFrom": "serializedKeyParts(domainBits).correctionWords, checked against the words actually present in the dump, summed",
       "mutation": "src/ui/app.ts — renderClaim('part-levels', parts.correctionWords, `${parts.correctionWords} B`) becomes renderClaim('part-levels', parts.correctionWords + perLevel, `${parts.correctionWords + perLevel} B`)",
       "expectedFlip": "the parts list claims one correction word more than the key carries, so the summed per-level cost no longer matches and the parts stop accounting for the total",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "key-size claims are measured per level across every domain the page offers",
+        "says": "B"
+      }
     },
     "key-part-final": {
       "renders": "#part-final in the parts list — 1 B of final correction",
       "computedFrom": "serializedKeyParts(domainBits).finalCorrection, the single byte holding the output correction bit",
       "mutation": "src/ui/app.ts — renderClaim('part-final', parts.finalCorrection, `${parts.finalCorrection} B`) becomes renderClaim('part-final', 2, '2 B')",
       "expectedFlip": "the tail is claimed as two bytes, so the stride walk loses a correction word and the parts overshoot the measured total",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "key-size claims are measured per level across every domain the page offers",
+        "says": "B"
+      }
     },
     "key-bytes-total": {
       "renders": "#key-bytes in the parts list — the measured total, 290 B",
       "computedFrom": "serializeKey(...).length, checked against the length of the rendered hex dump",
       "mutation": "src/ui/app.ts — renderClaim('key-bytes', serialized.length, `${serialized.length} B`) becomes renderClaim('key-bytes', serialized.length - 1, `${serialized.length - 1} B`)",
       "expectedFlip": "the measured total disagrees by one byte with the hex dump it is measured from",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "key-size claims are measured per level across every domain the page offers",
+        "says": "B"
+      }
     },
     "key-size-formula": {
       "renders": "#size-formula — 17 + (17 × log₂ 65,536) + 1 = 290 bytes",
       "computedFrom": "the same measured parts, restated as the size law for the domain under test",
       "mutation": "src/ui/app.ts — the formula's `= ${parts.total} bytes` becomes the literal `= 290 bytes`",
       "expectedFlip": "the formula is correct only at the default 65,536-record domain and states 290 bytes at every other one; invisible until the walk visits all four domain options",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "key-size claims are measured per level across every domain the page offers",
+        "says": "bytes"
+      }
     },
     "prg-node-width": {
       "renders": "#prg-width in the trace strip — AES-128-CTR → 2(λ + 1) = 258 bits per node",
       "computedFrom": "a real expandSeed() of the all-zero seed: both child seeds plus the two control bits",
       "mutation": "src/ui/app.ts — const nodeWidthBits = (zeroExpansion.leftSeed.length + zeroExpansion.rightSeed.length) * 8 + 2 becomes the same expression without + 2",
       "expectedFlip": "the node width drops the two control bits and claims 256, against 2(λ + 1) derived from the per-level slope the key sizes measured",
-      "assertedBy": "e2e/claims.spec.ts"
+      "assertedBy": {
+        "spec": "e2e/claims.spec.ts",
+        "test": "key-size claims are measured per level across every domain the page offers",
+        "says": "bits per node"
+      }
     }
   }
 }

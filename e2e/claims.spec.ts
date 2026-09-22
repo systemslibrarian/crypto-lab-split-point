@@ -55,7 +55,6 @@ test('honest PIR output equals the indexed shelf record', async ({ page }) => {
   // so the measurement is checked with them.
   await expectVerdict(page, 'record-match', {
     status: 'pass',
-    tone: 'pass',
     text: [
       'RETRIEVED · byte-for-byte match with shelf[α]',
       new RegExp(`match with shelf\\[α\\] across all ${(expected ?? '').length / 2} bytes`)
@@ -73,12 +72,10 @@ test('each server view verdict reports its own measured fold, not a fixed line',
 
   await expectVerdict(page, 'server-view-0', {
     status: 'pass',
-    tone: 'pass',
     text: [`one party-0 key of ${keyBytes} B`, /folded [\d,]+ of [\d,]+ records/]
   });
   await expectVerdict(page, 'server-view-1', {
     status: 'pass',
-    tone: 'pass',
     text: [`one party-1 key of ${keyBytes} B`, /folded [\d,]+ of [\d,]+ records/]
   });
 
@@ -96,7 +93,6 @@ test('each server view verdict reports its own measured fold, not a fixed line',
 
   await expectVerdict(page, 'collusion-state', {
     status: 'pass',
-    tone: 'pass',
     text: 'Collusion is off · neither key left its own server view'
   });
 });
@@ -109,7 +105,6 @@ test('the collusion state verdict follows the live trust boundary', async ({ pag
   await expect(page.locator('#pir-result')).toBeVisible();
   await expectVerdict(page, 'collusion-state', {
     status: 'alarm',
-    tone: 'alarm',
     text: 'Collusion is ON · one view holds both keys'
   });
   await expect(page.locator('#privacy-verdicts [data-status="pass"]')).toHaveCount(2);
@@ -121,15 +116,20 @@ test('rendered leaf shares XOR to one point at the displayed alpha', async ({ pa
   const share0 = await page.locator('#tree-zero .node-bit').allTextContents();
   const share1 = await page.locator('#tree-one .node-bit').allTextContents();
   const reconstruction = share0.map((bit, index) => Number(bit) ^ Number(share1[index]));
+  // The headline verdict must report the index the shares actually reconstruct,
+  // and it is asserted FIRST. verdict-mutations.json records this test as the
+  // one whose expectVerdict kills the direction-bit mutation, and every raw
+  // assertion that used to sit above this line — the lit-bit count,
+  // reconstruction[alpha], the #tree-xor readback — fails on that mutation
+  // before the helper is ever reached, so the flip the record describes was a
+  // flip no run had demonstrated.
+  await expectVerdict(page, 'tree-point', {
+    status: 'pass',
+    text: ['ONE LIT POINT AT', String(reconstruction.indexOf(1))]
+  });
   expect(reconstruction.filter((bit) => bit === 1)).toHaveLength(1);
   expect(reconstruction[alpha]).toBe(1);
   expect(await page.locator('#tree-xor .node-bit').allTextContents()).toEqual(reconstruction.map(String));
-  // The headline verdict must report the index the shares actually reconstruct.
-  await expectVerdict(page, 'tree-point', {
-    status: 'pass',
-    tone: 'pass',
-    text: ['ONE LIT POINT AT', String(reconstruction.indexOf(1))]
-  });
   expect(Number(await page.locator('#tree-alpha-verdict').textContent())).toBe(reconstruction.indexOf(1));
 });
 
@@ -200,10 +200,17 @@ test('key-size claims are measured per level across every domain the page offers
 
     const chor = await expectClaim(page, 'chor-query-bytes', {
       value: domainSize / 8,
-      text: `${domainSize.toLocaleString()} bits`
+      text: ['bits', `${domainSize.toLocaleString()} bits`]
     });
     expect(chor * 8, 'the Chor baseline is one bit per record').toBe(domainSize);
 
+    // Helper first, for the reason the tree-point call is first: the recorded
+    // mutation pins the formula's total to a literal 290, and the raw
+    // formulaNumbers comparison below catches that at every domain but the
+    // default — before expectClaim is reached, leaving the record's flip a flip
+    // no run demonstrated. expectClaim catches it on its own terms, because the
+    // sentence stops stating the data-value beside it.
+    await expectClaim(page, 'key-size-formula', { value: total, text: 'bytes' });
     const formulaText = (await page.locator('[data-claim="key-size-formula"]').textContent()) ?? '';
     const formulaNumbers = (formulaText.match(/[\d,]+/g) ?? []).map((value) => Number(value.replaceAll(',', '')));
     expect(formulaNumbers, `the formula states this domain's own measured parts: ${formulaText}`).toEqual([
@@ -213,7 +220,6 @@ test('key-size claims are measured per level across every domain the page offers
       finalBytes,
       total
     ]);
-    await expectClaim(page, 'key-size-formula', { value: total });
   }
 
   // The PRG width is measured from a real expansion, and λ is the one the key
@@ -228,8 +234,9 @@ test('changing alpha retires stale output while a no-op does not', async ({ page
   await expect(page.locator('#retirement')).toBeHidden();
   await slider.fill('4');
   await expect(page.locator('#retirement')).toContainText('Previous reconstruction for α = 11 retired');
+  // Helper before readback here too: the readback fails on the same mutation.
+  await expectVerdict(page, 'tree-point', { status: 'pass', text: ['ONE LIT POINT AT', '4'] });
   await expect(page.locator('#tree-alpha-verdict')).toHaveText('4');
-  await expectVerdict(page, 'tree-point', { status: 'pass', tone: 'pass', text: ['ONE LIT POINT AT', '4'] });
   const paintedHidden = await page.locator('[hidden]').evaluateAll((nodes) => nodes.filter((node) => getComputedStyle(node).display !== 'none').length);
   expect(paintedHidden).toBe(0);
 });
@@ -251,7 +258,6 @@ test('tampering violates integrity while every privacy verdict remains green', a
   // A corrupted record must not be able to keep the green plate.
   await expectVerdict(page, 'record-match', {
     status: 'alarm',
-    tone: 'alarm',
     text: ['RETRIEVED — AND WRONG', `${actual} of ${expectedBytes.length} bytes differ`]
   });
 });
@@ -267,7 +273,6 @@ test('the negative claim reports the run that exercised it', async ({ page }) =>
   // silently-accepted corruption produces, and the byte count has to be real.
   await expectVerdict(page, 'no-authentication', {
     status: 'alarm',
-    tone: 'alarm',
     text: 'does not authenticate what is returned'
   });
   const evidence = (await page.locator('#integrity-evidence').textContent()) ?? '';
@@ -286,14 +291,12 @@ test('the negative claim says it was not exercised when nothing was tampered wit
   await page.goto('.');
   await expectVerdict(page, 'no-authentication', {
     status: 'unexercised',
-    tone: 'alarm',
     text: 'does not authenticate what is returned'
   });
   await page.getByRole('button', { name: 'Fetch privately' }).click();
   await expect(page.locator('#pir-result')).toBeVisible();
   await expectVerdict(page, 'no-authentication', {
     status: 'unexercised',
-    tone: 'alarm',
     text: 'does not authenticate what is returned'
   });
   await expect(page.locator('#integrity-evidence')).toContainText('no answer was altered');

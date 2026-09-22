@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import {
   claimValues,
@@ -9,30 +7,13 @@ import {
   renderedClaims,
   renderedMarkers
 } from './verdict-scan';
+import { REGISTRY } from './verdict-ledger';
 
-interface MutationRecord {
-  renders: string;
-  computedFrom: string;
-  mutation: string;
-  expectedFlip: string;
-  assertedBy: string;
-}
-
-const REGISTRY = JSON.parse(
-  readFileSync(fileURLToPath(new URL('./verdict-mutations.json', import.meta.url)), 'utf8')
-) as {
-  markers: Record<string, MutationRecord>;
-  claims: Record<string, MutationRecord>;
-};
-
-const SPEC_SOURCES = new Map<string, string>();
-function specSource(relative: string): string {
-  const cached = SPEC_SOURCES.get(relative);
-  if (cached !== undefined) return cached;
-  const text = readFileSync(fileURLToPath(new URL(`../${relative}`, import.meta.url)), 'utf8');
-  SPEC_SOURCES.set(relative, text);
-  return text;
-}
+// Whether each registered mutation is actually killed THROUGH expectVerdict or
+// expectClaim is asserted in e2e/verdict-ledger.spec.ts, over the triples those
+// helpers recorded as they ran. It used to be asserted here as a regex over
+// spec source, and source cannot tell a live assertion from a commented-out
+// one, from one in an unrelated test, or from one handed the page's own values.
 
 interface Walk {
   markers: Set<string>;
@@ -194,29 +175,6 @@ test('every verdict and every measurement the page renders has a mutation coveri
       value !== '' && Number.isFinite(Number(value)),
       `${claim} carries a numeric data-value, got "${value}"`
     ).toBe(true);
-  }
-});
-
-test('each registered mutation is killed through the shared marker helper', async () => {
-  const families: ReadonlyArray<[string, Record<string, MutationRecord>, string]> = [
-    ['verdict', REGISTRY.markers, 'expectVerdict'],
-    ['claim', REGISTRY.claims, 'expectClaim']
-  ];
-  for (const [family, records, helper] of families) {
-    for (const [marker, entry] of Object.entries(records)) {
-      expect(entry.mutation.length, `${marker} records a mutation`).toBeGreaterThan(20);
-      expect(entry.expectedFlip.length, `${marker} records the flip it expects`).toBeGreaterThan(20);
-      const source = specSource(entry.assertedBy);
-      // Mentioning the id is not asserting on it, and asserting its text is not
-      // asserting its state. The helper asserts words, machine-readable value
-      // and painted state together, so a kill that only flipped the words is a
-      // build failure rather than a recorded kill.
-      const call = new RegExp(`${helper}\\(\\s*page,\\s*['"\`]${marker}['"\`]`);
-      expect(
-        call.test(source),
-        `${entry.assertedBy} must assert the ${family} ${marker} through ${helper}(page, '${marker}', …)`
-      ).toBe(true);
-    }
   }
 });
 
