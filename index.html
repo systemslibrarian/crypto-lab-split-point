@@ -114,7 +114,7 @@
           <div class="trace-strip">
             <div><span class="trace-label">Correction word</span><code id="correction-seed">final output correction</code></div>
             <div><span class="trace-label">Control bits</span><code id="correction-bits">β = 1</code></div>
-            <div><span class="trace-label">Primitive</span><code>AES-128-CTR → 2(λ + 1) bits</code></div>
+            <div><span class="trace-label">Primitive</span><code id="prg-width" data-claim="prg-node-width" data-value="258">AES-128-CTR → 2(λ + 1) = 258 bits per node</code></div>
           </div>
 
           <details class="key-inspector">
@@ -168,14 +168,14 @@
           <div class="meter-layout">
             <label class="select-label" for="size-domain">Domain size<span class="select-wrap"><select id="size-domain"><option value="4">16 records</option><option value="8">256 records</option><option value="12">4,096 records</option><option value="16" selected>65,536 records</option></select><span class="select-chevron" aria-hidden="true"></span></span></label>
             <div class="meter-bars">
-              <div class="meter-row"><div><strong>One DPF key</strong><span id="key-byte-label">290 bytes</span></div><div class="meter-track"><span class="meter-fill dpf-fill" id="dpf-bar"></span></div></div>
-              <div class="meter-row"><div><strong>Chor XOR query</strong><span id="chor-byte-label">8,192 bytes · 65,536 bits</span></div><div class="meter-track"><span class="meter-fill chor-fill" id="chor-bar"></span></div></div>
+              <div class="meter-row"><div><strong>One DPF key</strong><span id="key-byte-label" data-claim="dpf-key-bytes" data-value="290">290 bytes</span></div><div class="meter-track"><span class="meter-fill dpf-fill" id="dpf-bar"></span></div></div>
+              <div class="meter-row"><div><strong>Chor XOR query</strong><span id="chor-byte-label" data-claim="chor-query-bytes" data-value="8192">8,192 bytes · 65,536 bits</span></div><div class="meter-track"><span class="meter-fill chor-fill" id="chor-bar"></span></div></div>
             </div>
             <dl class="parts-list">
-              <div><dt>Root material</dt><dd id="part-root">17 B</dd></div><div><dt>Per-level corrections</dt><dd id="part-levels">272 B</dd></div><div><dt>Final correction</dt><dd id="part-final">1 B</dd></div><div class="parts-total"><dt>Measured total</dt><dd id="key-bytes" data-count="290">290 B</dd></div>
+              <div><dt>Root material</dt><dd id="part-root" data-claim="key-part-root" data-value="17">17 B</dd></div><div><dt>Per-level corrections</dt><dd id="part-levels" data-claim="key-part-levels" data-value="272">272 B</dd></div><div><dt>Final correction</dt><dd id="part-final" data-claim="key-part-final" data-value="1">1 B</dd></div><div class="parts-total"><dt>Measured total</dt><dd id="key-bytes" data-claim="key-bytes-total" data-value="290">290 B</dd></div>
             </dl>
           </div>
-          <p class="formula" id="size-formula">17 + (17 × log₂ 65,536) + 1 = 290 bytes</p>
+          <p class="formula" id="size-formula" data-claim="key-size-formula" data-value="290">17 + (17 × log₂ 65,536) + 1 = 290 bytes</p>
           <code id="meter-key-hex" class="visually-hidden"></code>
         </section>
 
