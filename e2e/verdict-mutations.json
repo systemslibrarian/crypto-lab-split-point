@@ -11,6 +11,11 @@
         "test": "rendered leaf shares XOR to one point at the displayed alpha",
         "status": "pass",
         "says": "ONE LIT POINT AT"
+      },
+      "patch": {
+        "file": "src/dpf/gen.ts",
+        "find": "const direction = ((alpha >>> (domainBits - level - 1)) & 1) as Bit;",
+        "replace": "const direction = (((alpha >>> (domainBits - level - 1)) & 1) ^ 1) as Bit;"
       }
     },
     "single-share": {
@@ -23,6 +28,11 @@
         "test": "collusion deliberately exposes alpha and switching it off removes the alarm",
         "status": "pass",
         "says": "re:ONE KEY ONLY · k0 alone lights \\d+ of \\d+ leaves, naming no point"
+      },
+      "patch": {
+        "file": "src/attack/single-view.ts",
+        "find": "namesAPoint: lit === 1",
+        "replace": "namesAPoint: lit >= 1"
       }
     },
     "collusion-recovery": {
@@ -35,6 +45,11 @@
         "test": "collusion deliberately exposes alpha and switching it off removes the alarm",
         "status": "alarm",
         "says": "SERVER SEES α = 11"
+      },
+      "patch": {
+        "file": "src/attack/collude.ts",
+        "find": "return { alpha: lit[0][0], reconstruction };",
+        "replace": "return { alpha: (lit[0][0] + 1) % reconstruction.length, reconstruction };"
       }
     },
     "server-view-0": {
@@ -47,6 +62,11 @@
         "test": "each server view verdict reports its own measured fold, not a fixed line",
         "status": "pass",
         "says": "re:folded [\\d,]+ of [\\d,]+ records"
+      },
+      "patch": {
+        "file": "src/pir/server.ts",
+        "find": "      if (share[index] === 0) continue;\n      foldedRecords += 1;",
+        "replace": "      if (share[index] === 0 || index !== 0) continue;\n      foldedRecords += 1;"
       }
     },
     "server-view-1": {
@@ -59,6 +79,11 @@
         "test": "each server view verdict reports its own measured fold, not a fixed line",
         "status": "pass",
         "says": "re:folded [\\d,]+ of [\\d,]+ records"
+      },
+      "patch": {
+        "file": "src/dpf/serialize.ts",
+        "find": "bytes[0] = (key.party << 7) | key.domainBits;",
+        "replace": "bytes[0] = key.domainBits;"
       }
     },
     "collusion-state": {
@@ -71,6 +96,11 @@
         "test": "the collusion state verdict follows the live trust boundary",
         "status": "alarm",
         "says": "Collusion is ON · one view holds both keys"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "const colluding = element<HTMLInputElement>('collusion-toggle').checked;",
+        "replace": "const colluding = false;"
       }
     },
     "record-match": {
@@ -83,6 +113,11 @@
         "test": "tampering violates integrity while every privacy verdict remains green",
         "status": "alarm",
         "says": "RETRIEVED — AND WRONG"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "verdict.className = `verdict ${matches ? 'verdict-pass' : 'verdict-alarm'}`;",
+        "replace": "verdict.className = 'verdict verdict-pass';"
       }
     },
     "no-authentication": {
@@ -95,6 +130,11 @@
         "test": "the negative claim reports the run that exercised it",
         "status": "alarm",
         "says": "does not authenticate what is returned"
+      },
+      "patch": {
+        "file": "src/attack/tamper.ts",
+        "find": "tampered[0] ^= 1;",
+        "replace": "tampered[0] ^= 0;"
       }
     }
   },
@@ -108,6 +148,11 @@
         "spec": "e2e/claims.spec.ts",
         "test": "key-size claims are measured per level across every domain the page offers",
         "says": "bytes"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "renderClaim('key-byte-label', serialized.length, `${serialized.length.toLocaleString()} bytes`);",
+        "replace": "renderClaim('key-byte-label', parts.correctionWords, `${parts.correctionWords.toLocaleString()} bytes`);"
       }
     },
     "chor-query-bytes": {
@@ -119,6 +164,11 @@
         "spec": "e2e/claims.spec.ts",
         "test": "key-size claims are measured per level across every domain the page offers",
         "says": "bits"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "const chorBytes = domainSize / 8;",
+        "replace": "const chorBytes = domainSize / 4;"
       }
     },
     "key-part-root": {
@@ -130,6 +180,11 @@
         "spec": "e2e/claims.spec.ts",
         "test": "key-size claims are measured per level across every domain the page offers",
         "says": "B"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "renderClaim('part-root', parts.rootMaterial, `${parts.rootMaterial} B`);",
+        "replace": "renderClaim('part-root', parts.rootMaterial - 1, `${parts.rootMaterial - 1} B`);"
       }
     },
     "key-part-levels": {
@@ -141,6 +196,11 @@
         "spec": "e2e/claims.spec.ts",
         "test": "key-size claims are measured per level across every domain the page offers",
         "says": "B"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "renderClaim('part-levels', parts.correctionWords, `${parts.correctionWords} B`);",
+        "replace": "renderClaim('part-levels', parts.correctionWords + perLevel, `${parts.correctionWords + perLevel} B`);"
       }
     },
     "key-part-final": {
@@ -152,6 +212,11 @@
         "spec": "e2e/claims.spec.ts",
         "test": "key-size claims are measured per level across every domain the page offers",
         "says": "B"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "renderClaim('part-final', parts.finalCorrection, `${parts.finalCorrection} B`);",
+        "replace": "renderClaim('part-final', 2, '2 B');"
       }
     },
     "key-bytes-total": {
@@ -163,6 +228,11 @@
         "spec": "e2e/claims.spec.ts",
         "test": "key-size claims are measured per level across every domain the page offers",
         "says": "B"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "renderClaim('key-bytes', serialized.length, `${serialized.length} B`);",
+        "replace": "renderClaim('key-bytes', serialized.length - 1, `${serialized.length - 1} B`);"
       }
     },
     "key-size-formula": {
@@ -174,6 +244,11 @@
         "spec": "e2e/claims.spec.ts",
         "test": "key-size claims are measured per level across every domain the page offers",
         "says": "bytes"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "= ${parts.total} bytes`",
+        "replace": "= 290 bytes`"
       }
     },
     "prg-node-width": {
@@ -185,6 +260,11 @@
         "spec": "e2e/claims.spec.ts",
         "test": "key-size claims are measured per level across every domain the page offers",
         "says": "bits per node"
+      },
+      "patch": {
+        "file": "src/ui/app.ts",
+        "find": "const nodeWidthBits = (zeroExpansion.leftSeed.length + zeroExpansion.rightSeed.length) * 8 + 2;",
+        "replace": "const nodeWidthBits = (zeroExpansion.leftSeed.length + zeroExpansion.rightSeed.length) * 8;"
       }
     }
   }
