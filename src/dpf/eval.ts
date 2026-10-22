@@ -1,5 +1,6 @@
 import { expandSeed, leafBit, xorBytes } from './prg';
 import type { Bit, DpfKey } from './types';
+import { assertValidDpfKey } from './validate';
 
 interface NodeState {
   seed: Uint8Array;
@@ -12,12 +13,10 @@ export interface TreeNodeState {
 }
 
 function validateEvaluation(key: DpfKey, point: number): void {
+  assertValidDpfKey(key);
   const domainSize = 2 ** key.domainBits;
   if (!Number.isInteger(point) || point < 0 || point >= domainSize) {
     throw new RangeError(`point must be an integer in [0, ${domainSize - 1}]`);
-  }
-  if (key.correctionWords.length !== key.domainBits) {
-    throw new TypeError('malformed key: correction-word count does not match domain');
   }
 }
 
@@ -64,10 +63,10 @@ export function evaluateAll(key: DpfKey): Uint8Array {
 }
 
 export function evaluateLevel(key: DpfKey, level: number): TreeNodeState[] {
+  assertValidDpfKey(key);
   if (!Number.isInteger(level) || level < 0 || level > key.domainBits) {
     throw new RangeError(`level must be an integer in [0, ${key.domainBits}]`);
   }
-  validateEvaluation(key, 0);
   let frontier: NodeState[] = [{ seed: key.rootSeed, control: key.party }];
   for (let current = 0; current < level; current += 1) {
     frontier = frontier.flatMap((state) => children(state, key, current));

@@ -1,5 +1,6 @@
 import type { Bit, DpfKey } from './types';
 import { MAX_DOMAIN_BITS, MIN_DOMAIN_BITS, SECURITY_BYTES } from './types';
+import { assertValidDpfKey } from './validate';
 
 const ROOT_MATERIAL_BYTES = 1 + SECURITY_BYTES;
 const CORRECTION_WORD_BYTES = SECURITY_BYTES + 1;
@@ -26,21 +27,13 @@ export function serializedKeyParts(domainBits: number): SerializedKeyParts {
 }
 
 export function serializeKey(key: DpfKey): Uint8Array {
+  assertValidDpfKey(key);
   const parts = serializedKeyParts(key.domainBits);
-  if (key.version !== 1 || key.rootSeed.length !== SECURITY_BYTES) {
-    throw new TypeError('malformed key: unsupported version or root seed length');
-  }
-  if (key.correctionWords.length !== key.domainBits) {
-    throw new TypeError('malformed key: correction-word count does not match domain');
-  }
   const bytes = new Uint8Array(parts.total);
   bytes[0] = (key.party << 7) | key.domainBits;
   bytes.set(key.rootSeed, 1);
   let offset = ROOT_MATERIAL_BYTES;
   for (const word of key.correctionWords) {
-    if (word.seed.length !== SECURITY_BYTES) {
-      throw new TypeError('malformed key: correction seed must be 16 bytes');
-    }
     bytes.set(word.seed, offset);
     bytes[offset + SECURITY_BYTES] = word.leftBit | (word.rightBit << 1);
     offset += CORRECTION_WORD_BYTES;

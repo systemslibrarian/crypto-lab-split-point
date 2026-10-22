@@ -22,6 +22,7 @@ interface LabState {
 
 let state: LabState = { alpha: 11, level: TREE_BITS, keys: generateDpf(11, TREE_BITS) };
 let shelf: Uint8Array[] | undefined;
+let fetchGeneration = 0;
 
 function element<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -115,8 +116,12 @@ function regenerateTree(alpha: number, retire: boolean): void {
     status.textContent = `Previous reconstruction for α = ${previous} retired; both keys were regenerated.`;
   }
   renderTree();
+  const collusionWasEnabled = element<HTMLInputElement>('collusion-toggle').checked;
   renderCollusion(false);
   element<HTMLInputElement>('collusion-toggle').checked = false;
+  if (collusionWasEnabled) {
+    retireFetchEvidence('PIR evidence retired: the collusion setting changed. Run a new fetch.');
+  }
 }
 
 /**
@@ -195,75 +200,112 @@ function collusionStateVerdict(colluding: boolean): string {
   return `<div class="mini-verdict" data-verdict="collusion-state" data-status="${colluding ? 'alarm' : 'pass'}"><span class="status-mark" aria-hidden="true">${colluding ? '!' : '1'}</span><span>${detail}</span></div>`;
 }
 
+function clearFetchEvidence(status: string): void {
+  element<HTMLElement>('pir-result').hidden = true;
+  element<HTMLElement>('pir-awaiting').hidden = false;
+  element('privacy-verdicts').replaceChildren();
+  element('retrieved-record').textContent = '';
+  element('expected-record').textContent = '';
+  const recordVerdict = element('record-verdict');
+  recordVerdict.className = 'verdict';
+  delete recordVerdict.dataset.status;
+  recordVerdict.replaceChildren();
+  element('negative-claim').dataset.status = 'unexercised';
+  element('integrity-evidence').textContent =
+    'Not exercised on the current inputs: run a new fetch before treating this claim as evidence.';
+  element('fetch-status').textContent = status;
+}
+
+function resetFetchProgress(): void {
+  element<HTMLProgressElement>('server-zero-progress').value = 0;
+  element<HTMLProgressElement>('server-one-progress').value = 0;
+  element<HTMLOutputElement>('server-zero-percent').value = '0%';
+  element<HTMLOutputElement>('server-one-percent').value = '0%';
+}
+
+function retireFetchEvidence(status: string): void {
+  fetchGeneration += 1;
+  clearFetchEvidence(status);
+  resetFetchProgress();
+}
+
 async function fetchFromShelf(): Promise<void> {
   const input = element<HTMLInputElement>('shelf-alpha');
   const alpha = Number(input.value);
   if (!Number.isInteger(alpha) || alpha < 0 || alpha >= SHELF_SIZE) {
+    retireFetchEvidence(`Rejected: α must be an integer from 0 to ${SHELF_SIZE - 1}.`);
     input.setAttribute('aria-invalid', 'true');
-    element('fetch-status').textContent = `Rejected: α must be an integer from 0 to ${SHELF_SIZE - 1}.`;
     return;
   }
   input.removeAttribute('aria-invalid');
+  const generation = ++fetchGeneration;
+  const tampered = element<HTMLInputElement>('tamper-toggle').checked;
+  const colluding = element<HTMLInputElement>('collusion-toggle').checked;
   const button = element<HTMLButtonElement>('fetch-record');
   button.disabled = true;
   const progress0 = element<HTMLProgressElement>('server-zero-progress');
   const progress1 = element<HTMLProgressElement>('server-one-progress');
   const percent0 = element<HTMLOutputElement>('server-zero-percent');
   const percent1 = element<HTMLOutputElement>('server-one-percent');
-  progress0.value = 0;
-  progress1.value = 0;
-  percent0.value = '0%';
-  percent1.value = '0%';
-  element('fetch-status').textContent = 'Generating two keys and scanning both 65,536-record shares…';
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  const started = performance.now();
-  shelf ??= createShelf(SHELF_SIZE);
-  const keys = createQuery(alpha, SHELF_BITS);
-  const updateProgress = (progress: HTMLProgressElement, output: HTMLOutputElement) =>
-    (completed: number, total: number): void => {
-      progress.value = completed;
-      output.value = `${Math.round((completed / total) * 100)}%`;
-    };
-  const [fold0, fold1] = await Promise.all([
-    serverAnswerProgressive(keys[0], shelf, updateProgress(progress0, percent0)),
-    serverAnswerProgressive(keys[1], shelf, updateProgress(progress1, percent1))
-  ]);
-  const tampered = element<HTMLInputElement>('tamper-toggle').checked;
-  const colluding = element<HTMLInputElement>('collusion-toggle').checked;
-  const answer1 = tampered ? tamperAnswer(fold1.answer) : fold1.answer;
-  let record: Uint8Array = new Uint8Array(0);
-  let integrityError: string | undefined;
+  clearFetchEvidence('Generating two keys and scanning both 65,536-record shares…');
+  resetFetchProgress();
   try {
-    record = reconstruct(fold0.answer, answer1);
-  } catch (error) {
-    integrityError = error instanceof Error ? error.message : String(error);
-  }
-  const expected = shelf[alpha];
-  const matches = sameBytes(record, expected);
-  const differing =
-    record.length === expected.length
-      ? expected.reduce((count, byte, index) => count + (byte === record[index] ? 0 : 1), 0)
-      : expected.length;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (generation !== fetchGeneration) return;
+    const started = performance.now();
+    shelf ??= createShelf(SHELF_SIZE);
+    const keys = createQuery(alpha, SHELF_BITS);
+    const updateProgress = (progress: HTMLProgressElement, output: HTMLOutputElement) =>
+      (completed: number, total: number): void => {
+        if (generation !== fetchGeneration) return;
+        progress.value = completed;
+        output.value = `${Math.round((completed / total) * 100)}%`;
+      };
+    const [fold0, fold1] = await Promise.all([
+      serverAnswerProgressive(keys[0], shelf, updateProgress(progress0, percent0)),
+      serverAnswerProgressive(keys[1], shelf, updateProgress(progress1, percent1))
+    ]);
+    if (generation !== fetchGeneration) return;
+    const answer1 = tampered ? tamperAnswer(fold1.answer) : fold1.answer;
+    let record: Uint8Array = new Uint8Array(0);
+    let integrityError: string | undefined;
+    try {
+      record = reconstruct(fold0.answer, answer1);
+    } catch (error) {
+      integrityError = error instanceof Error ? error.message : String(error);
+    }
+    const expected = shelf[alpha];
+    const matches = sameBytes(record, expected);
+    const differing =
+      record.length === expected.length
+        ? expected.reduce((count, byte, index) => count + (byte === record[index] ? 0 : 1), 0)
+        : expected.length;
 
-  element<HTMLElement>('pir-awaiting').hidden = true;
-  const expectedKeyBytes = serializedKeyParts(SHELF_BITS).total;
-  element('privacy-verdicts').innerHTML = [
-    serverViewVerdict('server-view-0', 'Server 0', keys[0], 0, expectedKeyBytes, fold0.foldedRecords, fold0.scannedRecords),
-    serverViewVerdict('server-view-1', 'Server 1', keys[1], 1, expectedKeyBytes, fold1.foldedRecords, fold1.scannedRecords),
-    collusionStateVerdict(colluding)
-  ].join('');
-  element('retrieved-record').textContent = toHex(record);
-  element('expected-record').textContent = toHex(expected);
-  const verdict = element('record-verdict');
-  verdict.className = `verdict ${matches ? 'verdict-pass' : 'verdict-alarm'}`;
-  verdict.dataset.status = matches ? 'pass' : 'alarm';
-  verdict.innerHTML = matches
-    ? `<span class="status-mark" aria-hidden="true">1</span><span>RETRIEVED · byte-for-byte match with shelf[α] across all ${expected.length} bytes</span>`
-    : `<span class="status-mark" aria-hidden="true">!</span><span>RETRIEVED — AND WRONG · ${differing} of ${expected.length} bytes differ from shelf[α]; no PIR authentication failure was raised</span>`;
-  renderIntegrityEvidence(tampered, matches, differing, expected.length, record.length, integrityError);
-  element<HTMLElement>('pir-result').hidden = false;
-  element('fetch-status').textContent = `Both full-domain folds completed in ${Math.round(performance.now() - started).toLocaleString()} ms.`;
-  button.disabled = false;
+    element<HTMLElement>('pir-awaiting').hidden = true;
+    const expectedKeyBytes = serializedKeyParts(SHELF_BITS).total;
+    element('privacy-verdicts').innerHTML = [
+      serverViewVerdict('server-view-0', 'Server 0', keys[0], 0, expectedKeyBytes, fold0.foldedRecords, fold0.scannedRecords),
+      serverViewVerdict('server-view-1', 'Server 1', keys[1], 1, expectedKeyBytes, fold1.foldedRecords, fold1.scannedRecords),
+      collusionStateVerdict(colluding)
+    ].join('');
+    element('retrieved-record').textContent = toHex(record);
+    element('expected-record').textContent = toHex(expected);
+    const verdict = element('record-verdict');
+    verdict.className = `verdict ${matches ? 'verdict-pass' : 'verdict-alarm'}`;
+    verdict.dataset.status = matches ? 'pass' : 'alarm';
+    verdict.innerHTML = matches
+      ? `<span class="status-mark" aria-hidden="true">1</span><span>RETRIEVED · byte-for-byte match with shelf[α] across all ${expected.length} bytes</span>`
+      : `<span class="status-mark" aria-hidden="true">!</span><span>RETRIEVED — AND WRONG · ${differing} of ${expected.length} bytes differ from shelf[α]; no PIR authentication failure was raised</span>`;
+    renderIntegrityEvidence(tampered, matches, differing, expected.length, record.length, integrityError);
+    element<HTMLElement>('pir-result').hidden = false;
+    element('fetch-status').textContent = `Both full-domain folds completed in ${Math.round(performance.now() - started).toLocaleString()} ms.`;
+  } catch (error) {
+    if (generation === fetchGeneration) {
+      clearFetchEvidence(`Fetch failed closed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } finally {
+    button.disabled = false;
+  }
 }
 
 /**
@@ -327,8 +369,15 @@ export function boot(): void {
   element<HTMLSelectElement>('size-domain').addEventListener('change', (event) => {
     renderMeter(Number((event.currentTarget as HTMLSelectElement).value));
   });
+  element<HTMLInputElement>('shelf-alpha').addEventListener('input', () => {
+    retireFetchEvidence('PIR evidence retired: the requested shelf index changed. Run a new fetch.');
+  });
+  element<HTMLInputElement>('tamper-toggle').addEventListener('change', () => {
+    retireFetchEvidence('PIR evidence retired: the tamper setting changed. Run a new fetch.');
+  });
   element('fetch-record').addEventListener('click', () => void fetchFromShelf());
   element<HTMLInputElement>('collusion-toggle').addEventListener('change', (event) => {
     renderCollusion((event.currentTarget as HTMLInputElement).checked);
+    retireFetchEvidence('PIR evidence retired: the collusion setting changed. Run a new fetch.');
   });
 }
