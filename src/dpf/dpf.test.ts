@@ -3,6 +3,7 @@ import { evaluate, evaluateAll, evaluateLevel } from './eval';
 import { generateDpf } from './gen';
 import { expandSeed, leafBit, xorBytes } from './prg';
 import { deserializeKey, serializeKey, serializedKeyParts, toHex } from './serialize';
+import { randomBelow } from './uniform';
 import type { DpfKey } from './types';
 
 describe('BGI distributed point function', () => {
@@ -30,7 +31,7 @@ describe('BGI distributed point function', () => {
   it('matches an independently constructed point vector at every supported domain size', () => {
     for (let domainBits = 4; domainBits <= 16; domainBits += 1) {
       const domainSize = 2 ** domainBits;
-      const alpha = crypto.getRandomValues(new Uint16Array(1))[0] % domainSize;
+      const alpha = randomBelow(domainSize);
       const [key0, key1] = generateDpf(alpha, domainBits);
       const share0 = evaluateAll(key0);
       const share1 = evaluateAll(key1);
