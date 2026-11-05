@@ -60,6 +60,50 @@ test('invalid shelf alpha fails closed with its cause', async ({ page }) => {
   await expect(page.locator('#pir-result')).toBeHidden();
 });
 
+test('completed PIR evidence retires when any controlling input changes', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('.');
+  const fetchAndExpectResult = async (): Promise<void> => {
+    await page.getByRole('button', { name: 'Fetch privately' }).click();
+    await expect(page.locator('#pir-result')).toBeVisible();
+  };
+  const expectRetired = async (cause: string): Promise<void> => {
+    await expect(page.locator('#pir-result')).toBeHidden();
+    await expect(page.locator('#pir-awaiting')).toBeVisible();
+    await expect(page.locator('#privacy-verdicts')).toBeEmpty();
+    await expect(page.locator('#record-verdict')).not.toHaveAttribute('data-status');
+    await expect(page.locator('#fetch-status')).toContainText(cause);
+  };
+
+  await fetchAndExpectResult();
+  await page.locator('#shelf-alpha').fill('41338');
+  await expectRetired('shelf index changed');
+
+  await fetchAndExpectResult();
+  await page.locator('#tamper-toggle').check();
+  await expectRetired('tamper setting changed');
+
+  await fetchAndExpectResult();
+  await page.locator('#collusion-toggle').check();
+  await expectRetired('collusion setting changed');
+});
+
+test('a superseded in-flight scan cannot restore old evidence', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('.');
+  await page.evaluate(() => {
+    document.getElementById('fetch-record')?.click();
+    const input = document.getElementById('shelf-alpha') as HTMLInputElement;
+    input.value = '41338';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('#fetch-status')).toContainText('shelf index changed');
+  await expect(page.getByRole('button', { name: 'Fetch privately' })).toBeEnabled({ timeout: 120_000 });
+  await expect(page.locator('#pir-result')).toBeHidden();
+  await expect(page.locator('#pir-awaiting')).toBeVisible();
+  await expect(page.locator('#privacy-verdicts')).toBeEmpty();
+});
+
 test('skip link is first and targets the app', async ({ page }) => {
   await page.goto('.');
   await page.keyboard.press('Tab');

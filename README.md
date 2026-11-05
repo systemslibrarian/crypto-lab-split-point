@@ -32,7 +32,7 @@ Move α and regenerate the two trees, step backward through their expansion, fet
 
 - **Server collusion:** either key alone hides α — the page measures this as the lit count of one expanded share — and both keys together reconstruct the point function and reveal it.
 - **Malicious answers:** a server can corrupt the record without triggering a protocol failure. The page’s `shelf[α]` comparison is an external teaching oracle, not a PIR authentication mechanism, and it reports the corrupted byte count from the run that produced it.
-- **Malformed inputs:** out-of-domain α, invalid key lengths/control bits, a shelf with the wrong shape, and mismatched server-answer lengths are rejected with named causes.
+- **Malformed inputs:** out-of-domain α, invalid in-memory or serialized key fields, a shelf with the wrong shape, and mismatched server-answer lengths are rejected with named causes rather than coerced into a different key.
 - **Implementation leakage:** this inspectable TypeScript does not claim constant-time execution or side-channel resistance.
 - **Work remains linear:** compact queries do not make the server scan sublinear; both servers evaluate the entire shelf.
 
@@ -73,7 +73,7 @@ npm run test:a11y
 
 ## Build & Verify
 
-The repository has **47 automated checks**: 24 Vitest unit/property tests and 23 Playwright browser tests. Unit tests cover every supported domain size, independent point-vector reconstruction, single-point versus full-domain evaluation, strict serialization, server API isolation, progressive and synchronous PIR reconstruction, the measured fold count each server's own share produces, the single-key view, record widths beyond one AES block, malformed inputs, collusion, and answer tampering. Current measured core coverage is 95% statements, 96.51% lines, 97.77% functions, and 88.88% branches.
+The repository has **50 cryptographic and browser checks**: 25 Vitest unit/property tests and 25 Playwright browser tests, plus five build-enforced maintenance controls. Unit tests cover every supported domain size, independent point-vector reconstruction, single-point versus full-domain evaluation, strict serialization, rejection of malformed in-memory keys, server API isolation, progressive and synchronous PIR reconstruction, the measured fold count each server's own share produces, the single-key view, record widths beyond one AES block, malformed inputs, collusion, and answer tampering. Browser tests also prove completed and in-flight PIR evidence is retired when any controlling input changes. Current measured core coverage is 96.51% statements, 98.17% lines, 97.91% functions, and 92.95% branches.
 
 There are **0 published known-answer tests** for this exact randomized BGI tree-DPF variant: a search of the primary paper and appendices found proofs and algorithms but no fixed seed/key/output vectors. No vectors were invented. Correctness instead uses randomized properties at every supported domain size plus an independent naive point vector compared leaf by leaf.
 

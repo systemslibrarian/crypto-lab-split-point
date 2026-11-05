@@ -3,6 +3,7 @@ import { evaluate, evaluateAll, evaluateLevel } from './eval';
 import { generateDpf } from './gen';
 import { expandSeed, leafBit, xorBytes } from './prg';
 import { deserializeKey, serializeKey, serializedKeyParts, toHex } from './serialize';
+import type { DpfKey } from './types';
 
 describe('BGI distributed point function', () => {
   it('reconstructs one point and zero everywhere else', () => {
@@ -86,6 +87,32 @@ describe('BGI distributed point function', () => {
     const final = bytes.slice();
     final[final.length - 1] = 2;
     expect(() => deserializeKey(final)).toThrow(/final correction/);
+  });
+
+  it('rejects malformed in-memory keys before evaluation or serialization', () => {
+    const [key] = generateDpf(2, 4);
+    const malformed: Array<readonly [unknown, RegExp]> = [
+      [null, /key object/],
+      [{ ...key, version: 2 }, /version/],
+      [{ ...key, domainBits: 17 }, /domainBits/],
+      [{ ...key, party: 2 }, /party/],
+      [{ ...key, rootSeed: new Uint8Array(15) }, /root seed/],
+      [{ ...key, correctionWords: [] }, /correction-word count/],
+      [
+        { ...key, correctionWords: [{ ...key.correctionWords[0], seed: new Uint8Array(15) }, ...key.correctionWords.slice(1)] },
+        /correction seed at level 1/
+      ],
+      [
+        { ...key, correctionWords: [{ ...key.correctionWords[0], leftBit: 2 }, ...key.correctionWords.slice(1)] },
+        /correction control at level 1/
+      ],
+      [{ ...key, finalCorrection: 2 }, /final correction/]
+    ];
+
+    for (const [candidate, cause] of malformed) {
+      expect(() => evaluateAll(candidate as DpfKey)).toThrow(cause);
+      expect(() => serializeKey(candidate as DpfKey)).toThrow(cause);
+    }
   });
 
   it('reports serialization parts that add to the byte dump', () => {
