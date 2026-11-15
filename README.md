@@ -42,10 +42,12 @@ Distributed point functions are a compact foundation for two-server PIR and func
 
 Primary sources:
 
-- [Gilboa & Ishai, “Distributed Point Functions and Their Applications,” EUROCRYPT 2014](https://doi.org/10.1007/978-3-642-55220-5_26)
-- [Boyle, Gilboa & Ishai, “Function Secret Sharing,” EUROCRYPT 2015](https://doi.org/10.1007/978-3-662-46803-6_20)
+- [Gilboa & Ishai, “Distributed Point Functions and Their Applications,” EUROCRYPT 2014](https://doi.org/10.1007/978-3-642-55220-5_35)
+- [Boyle, Gilboa & Ishai, “Function Secret Sharing,” EUROCRYPT 2015](https://doi.org/10.1007/978-3-662-46803-6_12)
 - [Boyle, Gilboa & Ishai, “Function Secret Sharing: Improvements and Extensions”](https://eprint.iacr.org/2018/707)
 - [Chor, Goldreich, Kushilevitz & Sudan, “Private Information Retrieval,” FOCS 1995](https://doi.org/10.1109/SFCS.1995.492461)
+
+**Sources reviewed 15 November 2026:** every link above was resolved and its title and authors checked against the publisher's record. The first two DOIs were corrected — both pointed at a different chapter of the right proceedings volume (`…55220-5_26` opens Durvaux, Standaert & Veyrat-Charvillon, “How to Certify the Leakage of a Chip?”, and `…46803-6_20` opens Chen, Gay & Wee, “Improved Dual System ABE in Prime-Order Groups via Predicate Encodings”). The citation text was right in both cases.
 
 ## How to Run Locally
 
