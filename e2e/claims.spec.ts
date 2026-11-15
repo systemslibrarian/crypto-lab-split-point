@@ -301,3 +301,25 @@ test('the negative claim says it was not exercised when nothing was tampered wit
   });
   await expect(page.locator('#integrity-evidence')).toContainText('no answer was altered');
 });
+
+/**
+ * The landing copy used to say two-server PIR "was also a query as long as the
+ * whole catalog". That is true only of the basic XOR scheme this page uses as
+ * its baseline: Chor, Goldreich, Kushilevitz and Sudan present it in §3.1 of
+ * "Private Information Retrieval" (JACM 45(6), 1998) purely as "a basis for
+ * more efficient ones", and their abstract advertises a two-server scheme with
+ * O(n^1/3) communication. Both halves of the corrected sentence are pinned.
+ */
+test('the landing copy limits the catalog-length query to the basic scheme and names O(n^1/3)', async ({
+  page
+}) => {
+  await page.goto('.');
+  const why = ((await page.locator('.cl-hero-why-text').innerText()) ?? '').replace(/\s+/g, ' ');
+  expect(why, 'the catalog-length query is attributed to the basic scheme only').toContain(
+    'basic two-server PIR scheme'
+  );
+  expect(why, "the published two-server bound is named").toMatch(/O\(n\s*1\/3\s*\)/);
+  expect(why, 'the blanket claim about two-server PIR is gone').not.toContain(
+    'Two-server PIR was already private'
+  );
+});

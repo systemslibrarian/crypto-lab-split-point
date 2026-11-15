@@ -95,7 +95,7 @@ If `theme-sync` reports an adjacent-card collision after the card is placed, cha
 - Title: `Split Point`
 - Subtitle: `Function secret sharing · DPF · 2-server PIR`
 - Description: Watch two random-looking key trees unfold level by level, XOR their leaves into a single lit point, and use that point to pull one book off a 65,536-book shelf with a query smaller than one page.
-- Why it matters: Two-server PIR was already private; it was also a query as long as the whole catalog. Function secret sharing is what made "which record did you read" hideable at the size of real collections, and it is the building block the CFRG's private-measurement work reaches for.
+- Why it matters: The basic two-server PIR scheme is private, but its query is as long as the whole catalog — which is why Chor, Goldreich, Kushilevitz and Sudan treated it only as a starting point and published a two-server scheme with O(n^1/3) communication. Function secret sharing is what made "which record did you read" hideable at the size of real collections, and it is the building block the CFRG's private-measurement work reaches for.
 
 ## §1 sections
 
