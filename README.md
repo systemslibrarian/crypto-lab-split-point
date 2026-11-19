@@ -4,7 +4,7 @@
 
 Split Point is an interactive implementation of the two-party distributed point function (DPF) from Boyle, Gilboa, and Ishai and its application to two-server XOR private information retrieval (PIR). A client splits the function “return 1 only at index α” into two compact keys. Each server expands one key over the public shelf, folds the selected record shares, and returns one answer; XORing the answers recovers `shelf[α]` without either non-colluding server receiving α.
 
-The teaching implementation supports domains from $2^4$ through $2^{16}$. Its pseudorandom generator uses real AES-128-CTR from the audited `@noble/ciphers` library. The synchronous library API keeps every tree step inspectable in the browser; it is not simulated math. This is not production cryptography: the TypeScript favors inspection over side-channel resistance, has not received a security audit, and keeps ephemeral keys only in browser memory.
+The teaching implementation supports domains from $2^4$ through $2^{16}$. Its pseudorandom generator uses real AES-128-CTR from the [`@noble/ciphers`](https://github.com/paulmillr/noble-ciphers) library — pinned `^2.0.1`, a major version past its latest independent audit ("at version 1.0.0, in Sep 2024, independently, by [cure53]", scope "everything"), so the release this lab ships is not the audited one. The synchronous library API keeps every tree step inspectable in the browser; it is not simulated math. This is not production cryptography: the TypeScript favors inspection over side-channel resistance, has not received a security audit, and keeps ephemeral keys only in browser memory.
 
 ## Exhibits
 

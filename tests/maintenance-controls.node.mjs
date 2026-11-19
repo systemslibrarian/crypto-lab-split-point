@@ -57,7 +57,10 @@ test('post-merge deployment dispatch is direct and fail-closed', () => {
 });
 
 test('the production build runs this maintenance gate', () => {
-  assert.equal(packageJson.scripts['test:maintenance'], 'node --test tests/maintenance-controls.node.mjs');
+  assert.equal(
+    packageJson.scripts['test:maintenance'],
+    'node --test tests/maintenance-controls.node.mjs tests/noble-audit.node.mjs'
+  );
   assert.match(packageJson.scripts.build, /npm run test:maintenance/);
 });
 

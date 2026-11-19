@@ -11,7 +11,7 @@
     "test:unit": "vitest run",
     "test:a11y": "playwright test",
     "test:verdicts": "playwright test --project=verdict-ledger",
-    "test:maintenance": "node --test tests/maintenance-controls.node.mjs"
+    "test:maintenance": "node --test tests/maintenance-controls.node.mjs tests/noble-audit.node.mjs"
   },
   "dependencies": {
     "@noble/ciphers": "^2.0.1"
