@@ -91,7 +91,7 @@
         <section class="lab-section mechanism" aria-labelledby="mechanism-title">
           <div class="section-heading">
             <div><p class="section-index">01 · TREE MICROSCOPE</p><h2 id="mechanism-title">One point, split across two trees</h2></div>
-            <div class="verdict verdict-pass" id="tree-verdict" data-verdict="tree-point" data-status="pass"><span class="status-mark" aria-hidden="true">1</span><span>ONE LIT POINT AT α = <strong id="tree-alpha-verdict">11</strong></span></div>
+            <div class="verdict" id="tree-verdict" data-verdict="tree-point" role="status">Waiting for both leaf shares to be evaluated.</div>
           </div>
 
           <div class="control-deck">
@@ -108,7 +108,7 @@
             <div class="tree-row"><div class="row-label"><span class="party-dot party-zero"></span><strong>Server 0</strong><span>k0 share</span></div><div class="node-grid" id="tree-zero" role="list"></div></div>
             <div class="tree-row"><div class="row-label"><span class="party-dot party-one"></span><strong>Server 1</strong><span>k1 share</span></div><div class="node-grid" id="tree-one" role="list"></div></div>
             <div class="xor-divider"><span>XOR</span></div>
-            <div class="tree-row xor-row"><div class="row-label"><span class="party-dot xor-dot"></span><strong>Combined</strong><span>point function</span></div><div class="node-grid" id="tree-xor" role="list"></div></div>
+            <div class="tree-row xor-row"><div class="row-label"><span class="party-dot xor-dot"></span><strong>Combined</strong><span id="combined-kind">leaf values</span></div><div class="node-grid" id="tree-xor" role="list"></div></div>
           </div>
 
           <div class="trace-strip">

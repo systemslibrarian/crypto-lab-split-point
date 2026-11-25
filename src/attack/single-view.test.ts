@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { evaluateAll } from '../dpf/eval';
 import { createQuery } from '../pir/client';
 import { deserializeKey } from '../dpf/serialize';
@@ -15,19 +15,37 @@ describe('what one server sees from its own key', () => {
     expect(view.domainBits).toBe(8);
   });
 
-  it('names no point from one share, at every domain it is asked about', () => {
-    for (const domainBits of [8, 12]) {
-      const [key0, key1] = createQuery(3, domainBits);
-      expect(singleShareView(key0).namesAPoint).toBe(false);
-      expect(singleShareView(key1).namesAPoint).toBe(false);
+  it('reports each party and the actual population at both domain sizes', () => {
+    for (const bits of [8, 12]) {
+      for (const key of createQuery(3, bits)) {
+        const decoded = deserializeKey(key);
+        const leaves = evaluateAll(decoded);
+        expect(singleShareView(key)).toEqual({
+          party: decoded.party, domainBits: bits,
+          lit: leaves.filter(bit => bit === 1).length, total: leaves.length
+        });
+      }
     }
   });
 
-  it('ties namesAPoint to the measured lit count, not to the party or domain', () => {
-    const [key0, key1] = createQuery(7, 8);
-    for (const key of [key0, key1]) {
-      const view = singleShareView(key);
-      expect(view.namesAPoint).toBe(view.lit === 1);
+  it('counts a lone lit leaf even when it is at a different index from the request', () => {
+    const draw = vi.spyOn(crypto, 'getRandomValues');
+    try {
+      for (const seed of [150, 151]) {
+        draw.mockImplementationOnce(array => {
+          if (!(array instanceof Uint8Array) || array.length !== 16) throw new Error('Expected a root seed');
+          array.fill(0);
+          new DataView(array.buffer, array.byteOffset, array.byteLength).setUint32(0, seed);
+          return array;
+        });
+      }
+      const [key0] = createQuery(11, 4);
+      expect(singleShareView(key0).lit).toBe(1);
+      const leaves = evaluateAll(deserializeKey(key0));
+      expect(leaves.indexOf(1)).toBe(10);
+      expect(leaves[11]).toBe(0);
+    } finally {
+      draw.mockRestore();
     }
   });
 

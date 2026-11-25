@@ -20,19 +20,19 @@
     },
     "single-share": {
       "renders": "#collusion-view verdict with the collusion toggle off — ONE KEY ONLY · k0 alone lights n of 16 leaves",
-      "computedFrom": "singleShareView(k0).lit / .namesAPoint",
-      "mutation": "src/attack/single-view.ts — namesAPoint: lit === 1 becomes namesAPoint: lit >= 1",
-      "expectedFlip": "a share lighting ~8 leaves is reported as naming a point, so data-status becomes alarm and the plate turns red",
+      "computedFrom": "singleShareView(k0).party and its measured lit count",
+      "mutation": "Report one extra lit leaf in the single-share view.",
+      "expectedFlip": "The displayed count disagrees with the independently counted server-0 leaf row.",
       "assertedBy": {
         "spec": "e2e/flows.spec.ts",
         "test": "collusion deliberately exposes alpha and switching it off removes the alarm",
         "status": "pass",
-        "says": "re:ONE KEY ONLY · k0 alone lights \\d+ of \\d+ leaves, naming no point"
+        "says": "ONE KEY ONLY"
       },
       "patch": {
         "file": "src/attack/single-view.ts",
-        "find": "namesAPoint: lit === 1",
-        "replace": "namesAPoint: lit >= 1"
+        "find": "    lit,",
+        "replace": "    lit: lit + 1,"
       }
     },
     "collusion-recovery": {
@@ -56,7 +56,7 @@
       "renders": "first #privacy-verdicts tile — Server 0 · one party-0 key of 290 B · folded n of 65,536 records",
       "computedFrom": "deserializeKey(keys[0]).party, keys[0].length, and fold0.foldedRecords from the real fold",
       "mutation": "src/pir/server.ts — in serverAnswerProgressive, if (share[index] === 0) continue becomes if (share[index] === 0 || index !== 0) continue",
-      "expectedFlip": "the server folds at most the first record, so folded > 1 fails and data-status becomes alarm",
+      "expectedFlip": "The server folds at most the first record while its expanded selection vector still includes the other selected records. The receipt fails its count check and reports alarm.",
       "assertedBy": {
         "spec": "e2e/claims.spec.ts",
         "test": "each server view verdict reports its own measured fold, not a fixed line",

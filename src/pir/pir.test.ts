@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { evaluate } from '../dpf/eval';
+import { deserializeKey } from '../dpf/serialize';
 import { collude } from '../attack/collude';
 import { tamperAnswer } from '../attack/tamper';
 import { createQuery, fetchRecord, reconstruct } from './client';
@@ -30,7 +32,7 @@ describe('two-server XOR PIR', () => {
     expect(progress.at(-1)).toBe(16);
   });
 
-  it('counts the records its own share selected, which is neither none nor one', async () => {
+  it('counts exactly the records selected by each key', async () => {
     const shelf = createShelf(256);
     const [key0, key1] = createQuery(5, 8);
     const fold0 = await serverAnswerProgressive(key0, shelf, () => {});
@@ -39,8 +41,12 @@ describe('two-server XOR PIR', () => {
     expect(fold1.scannedRecords).toBe(256);
     // The two folds differ by exactly the one record the point function selects.
     expect(Math.abs(fold0.foldedRecords - fold1.foldedRecords)).toBe(1);
-    expect(fold0.foldedRecords).toBeGreaterThan(1);
-    expect(fold0.foldedRecords).toBeLessThan(256);
+    for (const [key, fold] of [[key0, fold0], [key1, fold1]] as const) {
+      const decoded = deserializeKey(key);
+      const selected = shelf.filter((_, index) => evaluate(decoded, index) === 1).length;
+      expect(fold.foldedRecords).toBe(selected);
+      expect(fold.selectedRecords).toBe(selected);
+    }
   });
 
   it('folds records wider than one AES block without truncation', () => {

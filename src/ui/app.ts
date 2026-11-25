@@ -34,10 +34,10 @@ function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
   return left.length === right.length && left.every((byte, index) => byte === right[index]);
 }
 
-function renderNode(bit: number, seedHex: string, index: number, combined: boolean): string {
+function renderNode(bit: number, seedHex: string, index: number, combined: boolean, atLeaves = true): string {
   const lit = combined && bit === 1 ? ' node-lit' : '';
   const label = combined
-    ? `Combined node ${index}, value ${bit}${bit === 1 ? ', secret point' : ''}`
+    ? `Combined node ${index}, value ${bit}${bit === 1 ? (atLeaves ? ', secret point' : ', prefix of the secret index') : ''}`
     : `Share node ${index}, value ${bit}, seed prefix ${seedHex}`;
   return `<span class="tree-node${lit}" role="listitem" aria-label="${label}"><span class="node-bit">${bit}</span>${combined ? '' : `<span class="seed-prefix">${seedHex}</span>`}</span>`;
 }
@@ -84,7 +84,8 @@ function renderTree(): void {
   element('tree-one').innerHTML = Array.from(bits1, (bit, index) =>
     renderNode(bit, toHex(nodes1[index].seed).slice(0, 8), index, false)
   ).join('');
-  element('tree-xor').innerHTML = Array.from(xor, (bit, index) => renderNode(bit, '', index, true)).join('');
+  element('combined-kind').textContent = atLeaves ? 'leaf values' : 'prefix control bits';
+  element('tree-xor').innerHTML = Array.from(xor, (bit, index) => renderNode(bit, '', index, true, atLeaves)).join('');
 
   element<HTMLOutputElement>('step-value').value = `${state.level} / ${TREE_BITS}`;
   element<HTMLButtonElement>('step-back').disabled = state.level === 0;
@@ -164,9 +165,12 @@ function renderCollusion(enabled: boolean): void {
   const serialized = state.keys.map(serializeKey) as unknown as readonly [Uint8Array, Uint8Array];
   if (!enabled) {
     const alone = singleShareView(serialized[0]);
-    const hides = !alone.namesAPoint;
+    const expectedShare = alone.party === 0;
+    const detail = expectedShare
+      ? `ONE KEY ONLY · k0 alone lights ${alone.lit} of ${alone.total} leaves`
+      : 'Unexpected party in the server 0 view';
     view.className = 'collusion-view';
-    view.innerHTML = `<div class="verdict ${hides ? 'verdict-pass' : 'verdict-alarm'}" data-verdict="single-share" data-status="${hides ? 'pass' : 'alarm'}"><span class="status-mark" aria-hidden="true">${hides ? '1' : '!'}</span><span>${hides ? `ONE KEY ONLY · k0 alone lights ${alone.lit} of ${alone.total} leaves, naming no point` : `ONE KEY ONLY · k0 alone lights exactly 1 of ${alone.total} leaves, so this share names a point by itself`}</span></div><p>A single expanded share contains many 0s and 1s but no distinguished target; only the XOR of both shares is a point function.</p>`;
+    view.innerHTML = `<div class="verdict ${expectedShare ? 'verdict-pass' : 'verdict-alarm'}" data-verdict="single-share" data-status="${expectedShare ? 'pass' : 'alarm'}"><span class="status-mark" aria-hidden="true">${expectedShare ? '1' : '!'}</span><span>${detail}</span></div><p>A single share can light any number of leaves, including just one. The count alone does not identify the requested index. XOR the two leaf rows to reconstruct it.</p>`;
     return;
   }
   const result = collude(serialized[0], serialized[1]);
@@ -183,14 +187,16 @@ function serverViewVerdict(
   expectedParty: number,
   expectedBytes: number,
   folded: number,
+  selected: number,
   scanned: number
 ): string {
   const party = deserializeKey(serializedKey).party;
-  const blind = party === expectedParty && serializedKey.length === expectedBytes && folded > 1 && folded < scanned;
-  const detail = blind
+  const receiptMatches = party === expectedParty && serializedKey.length === expectedBytes &&
+    scanned === SHELF_SIZE && folded === selected;
+  const detail = receiptMatches
     ? `${label} · one party-${party} key of ${serializedKey.length} B · folded ${folded.toLocaleString()} of ${scanned.toLocaleString()} records`
-    : `${label} · party-${party} key of ${serializedKey.length} B folded ${folded.toLocaleString()} of ${scanned.toLocaleString()} records — this view is not α-blind`;
-  return `<div class="mini-verdict" data-verdict="${marker}" data-status="${blind ? 'pass' : 'alarm'}"><span class="status-mark" aria-hidden="true">${blind ? '1' : '!'}</span><span>${detail}</span></div>`;
+    : `${label} · party-${party} key of ${serializedKey.length} B folded ${folded.toLocaleString()} of ${scanned.toLocaleString()} records — key or scan receipt mismatch`;
+  return `<div class="mini-verdict" data-verdict="${marker}" data-status="${receiptMatches ? 'pass' : 'alarm'}"><span class="status-mark" aria-hidden="true">${receiptMatches ? '1' : '!'}</span><span>${detail}</span></div>`;
 }
 
 function collusionStateVerdict(colluding: boolean): string {
@@ -231,7 +237,7 @@ function retireFetchEvidence(status: string): void {
 
 async function fetchFromShelf(): Promise<void> {
   const input = element<HTMLInputElement>('shelf-alpha');
-  const alpha = Number(input.value);
+  const alpha = input.valueAsNumber;
   if (!Number.isInteger(alpha) || alpha < 0 || alpha >= SHELF_SIZE) {
     retireFetchEvidence(`Rejected: α must be an integer from 0 to ${SHELF_SIZE - 1}.`);
     input.setAttribute('aria-invalid', 'true');
@@ -284,8 +290,8 @@ async function fetchFromShelf(): Promise<void> {
     element<HTMLElement>('pir-awaiting').hidden = true;
     const expectedKeyBytes = serializedKeyParts(SHELF_BITS).total;
     element('privacy-verdicts').innerHTML = [
-      serverViewVerdict('server-view-0', 'Server 0', keys[0], 0, expectedKeyBytes, fold0.foldedRecords, fold0.scannedRecords),
-      serverViewVerdict('server-view-1', 'Server 1', keys[1], 1, expectedKeyBytes, fold1.foldedRecords, fold1.scannedRecords),
+      serverViewVerdict('server-view-0', 'Server 0', keys[0], 0, expectedKeyBytes, fold0.foldedRecords, fold0.selectedRecords, fold0.scannedRecords),
+      serverViewVerdict('server-view-1', 'Server 1', keys[1], 1, expectedKeyBytes, fold1.foldedRecords, fold1.selectedRecords, fold1.scannedRecords),
       collusionStateVerdict(colluding)
     ].join('');
     element('retrieved-record').textContent = toHex(record);

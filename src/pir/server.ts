@@ -26,6 +26,8 @@ export interface ProgressiveAnswer {
   answer: Uint8Array;
   /** How many shelf records this server's own share selected into the fold. */
   foldedRecords: number;
+  /** Population of the expanded selection vector, checked against the fold receipt. */
+  selectedRecords: number;
   /** How many records the server scanned, which is always the whole shelf. */
   scannedRecords: number;
 }
@@ -62,7 +64,8 @@ export async function serverAnswerProgressive(
       else setTimeout(resolve, 0);
     });
   }
-  return { answer, foldedRecords, scannedRecords: shelf.length };
+  const selectedRecords = share.reduce((count, bit) => count + bit, 0);
+  return { answer, foldedRecords, selectedRecords, scannedRecords: shelf.length };
 }
 
 // [extension] point: a batched server can share this fold while changing the query shape.

@@ -36,19 +36,13 @@ test('collusion deliberately exposes alpha and switching it off removes the alar
   await page.locator('#collusion-toggle').uncheck();
   await expect(page.locator('.collusion-alarm')).toHaveCount(0);
   const alone = page.locator('[data-verdict="single-share"]');
-  // "One key hides α" is rendered as a measured lit count over the real share,
-  // and the words, the status and the green plate are asserted as one claim.
+  const leaves = await page.locator('#tree-zero .node-bit').allTextContents();
+  const count = leaves.filter(bit => bit === '1').length;
   await expectVerdict(page, 'single-share', {
     status: 'pass',
-    text: [/ONE KEY ONLY · k0 alone lights \d+ of \d+ leaves, naming no point/]
+    text: ['ONE KEY ONLY', `k0 alone lights ${count} of ${leaves.length} leaves`]
   });
-  const text = (await alone.textContent()) ?? '';
-  const counted = text.match(/lights (\d+) of (\d+) leaves/);
-  expect(counted, `the single-share verdict reports a measured count: ${text}`).not.toBeNull();
-  const [, litLeaves, totalLeaves] = counted as RegExpMatchArray;
-  expect(Number(totalLeaves)).toBe(16);
-  expect(Number(litLeaves)).not.toBe(1);
-  expect(Number(litLeaves)).toBeGreaterThan(0);
+  await expect(alone).toContainText('ONE KEY ONLY');
 });
 
 test('invalid shelf alpha fails closed with its cause', async ({ page }) => {
@@ -110,4 +104,51 @@ test('skip link is first and targets the app', async ({ page }) => {
   await expect(page.locator(':focus')).toHaveClass(/cl-skip-link/);
   await page.keyboard.press('Enter');
   await expect.poll(() => page.evaluate(() => location.hash)).toBe('#app');
+});
+
+test('a blank shelf index is refused while explicit zero retrieves the first book', async ({ page }) => {
+  await page.goto('.');
+  const input = page.locator('#shelf-alpha');
+  await input.fill('');
+  await page.getByRole('button', { name: 'Fetch privately' }).click();
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#retrieved-record')).toBeEmpty();
+  await expect(page.locator('#server-zero-progress')).toHaveJSProperty('value', 0);
+  await input.fill('0');
+  await page.getByRole('button', { name: 'Fetch privately' }).click();
+  await expect(page.locator('#retrieved-record')).toHaveText('00000000193e3ab51f37d0bf39b8eeb4', { timeout: 30000 });
+  await expect(input).not.toHaveAttribute('aria-invalid');
+});
+
+test('a singleton server share can light a different leaf from the requested index', async ({ page }) => {
+  // These two classroom root draws generate a single lit leaf at 10 in k0 for a query of 11.
+  await page.addInitScript(() => {
+    const random = crypto.getRandomValues.bind(crypto);
+    let draw = 150;
+    crypto.getRandomValues = function<T extends ArrayBufferView | null>(array: T): T {
+      if (draw <= 151 && array instanceof Uint8Array && array.length === 16) {
+        array.fill(0);
+        new DataView(array.buffer, array.byteOffset, array.byteLength).setUint32(0, draw++);
+        return array;
+      }
+      return random(array);
+    };
+  });
+  await page.goto('.');
+  const single = await page.locator('#tree-zero .node-bit').allTextContents();
+  expect(single.join('')).toBe('0000000000100000');
+  await expect(page.locator('#tree-alpha-verdict')).toHaveText('11');
+  await expectVerdict(page, 'single-share', { status: 'pass', text: 'k0 alone lights 1 of 16 leaves' });
+  await page.locator('#step-back').click();
+  await expect(page.locator('#tree-xor .node-lit')).toHaveAttribute('aria-label', /node 5,.*prefix/);
+  await page.locator('#step-next').click();
+  await expect(page.locator('#tree-xor .node-lit')).toHaveAttribute('aria-label', /node 11,.*secret point/);
+});
+
+test('the initial HTML waits for reconstruction before showing a tree verdict', async ({ page }) => {
+  await page.route('**/assets/*.js', route => route.abort());
+  await page.goto('.');
+  await expect(page.locator('#tree-verdict')).toContainText('Waiting');
+  await expect(page.locator('#tree-verdict')).not.toHaveAttribute('data-status');
+  await expect(page.locator('#tree-zero .node-bit')).toHaveCount(0);
 });
